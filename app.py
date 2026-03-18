@@ -35,7 +35,7 @@ def parse_date_params():
     if date_from:
         date_from = datetime.strptime(date_from, "%Y-%m-%d")
     else:
-        date_from = date_to - timedelta(days=config.DATE_RANGE_DAYS)
+        date_from = datetime(date_to.year, 1, 1)
     return date_from, date_to
 
 

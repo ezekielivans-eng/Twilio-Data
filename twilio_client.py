@@ -1,9 +1,13 @@
+import logging
+
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
 from twilio.http.http_client import TwilioHttpClient
 import config
 
-TWILIO_TIMEOUT = 10  # seconds
+logger = logging.getLogger(__name__)
+
+TWILIO_TIMEOUT = 60  # seconds
 
 
 def get_client():
@@ -50,7 +54,8 @@ def get_messages(account_sid, date_from, date_to, limit=2000):
             date_sent_before=date_to,
             limit=limit,
         )
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to fetch messages for %s: %s", account_sid, e)
         return []
     whatsapp_messages = []
     for m in messages:
@@ -117,7 +122,8 @@ def get_usage_records(account_sid, date_from, date_to):
             start_date=date_from,
             end_date=date_to,
         )
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to fetch usage for %s: %s", account_sid, e)
         return []
     whatsapp_records = []
     for r in records:

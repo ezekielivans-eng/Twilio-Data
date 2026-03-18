@@ -15,4 +15,4 @@ if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
 FLASK_SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "dev-secret-change-me")
 FLASK_DEBUG = os.environ.get("FLASK_DEBUG", "false").lower() in ("true", "1", "yes")
 CACHE_TTL_SECONDS = int(os.environ.get("CACHE_TTL_SECONDS", "300"))
-DATE_RANGE_DAYS = int(os.environ.get("DATE_RANGE_DAYS", "30"))
+DATE_RANGE_DAYS = int(os.environ.get("DATE_RANGE_DAYS", "365"))
