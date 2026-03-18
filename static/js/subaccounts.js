@@ -1,14 +1,21 @@
 (async function() {
     showLoading();
     try {
-        const res = await fetch(`/api/subaccounts?${getDateParams()}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
+        const res = await fetch(`/api/subaccounts?${getDateParams()}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Server error (${res.status})`);
+        }
         const data = await res.json();
         renderTable(data.subaccounts);
         renderSpendChart(data.subaccounts);
+        hideLoading();
     } catch(e) {
-        console.error('Failed to load subaccounts:', e);
+        showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
     }
-    hideLoading();
 })();
 
 function renderTable(subaccounts) {

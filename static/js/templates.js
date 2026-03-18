@@ -4,15 +4,22 @@ let currentSort = { key: 'total', asc: false };
 (async function() {
     showLoading();
     try {
-        const res = await fetch(`/api/templates?${getDateParams()}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
+        const res = await fetch(`/api/templates?${getDateParams()}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Server error (${res.status})`);
+        }
         const data = await res.json();
         allTemplates = data.templates;
         populateAccountFilter(data.subaccounts || []);
         renderAll(allTemplates);
+        hideLoading();
     } catch(e) {
-        console.error('Failed to load templates:', e);
+        showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
     }
-    hideLoading();
 })();
 
 // Account filter
@@ -21,14 +28,21 @@ document.getElementById('accountFilter').addEventListener('change', async functi
     try {
         let url = `/api/templates?${getDateParams()}`;
         if (this.value) url += `&account_sid=${this.value}`;
-        const res = await fetch(url);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Server error (${res.status})`);
+        }
         const data = await res.json();
         allTemplates = data.templates;
         applySearch();
+        hideLoading();
     } catch(e) {
-        console.error('Failed to filter:', e);
+        showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
     }
-    hideLoading();
 });
 
 // Search filter

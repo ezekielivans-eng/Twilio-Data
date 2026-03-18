@@ -1,7 +1,14 @@
 (async function() {
     showLoading();
     try {
-        const res = await fetch(`/api/subaccounts/${ACCOUNT_SID}?${getDateParams()}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
+        const res = await fetch(`/api/subaccounts/${ACCOUNT_SID}?${getDateParams()}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Server error (${res.status})`);
+        }
         const data = await res.json();
 
         document.getElementById('accountTitle').textContent = `Sub-Account: ${data.account_name}`;
@@ -11,10 +18,10 @@
         renderTimelineChart(data.daily);
         renderTemplateChart(data.templates);
         renderTemplatesTable(data.templates);
+        hideLoading();
     } catch(e) {
-        console.error('Failed to load subaccount detail:', e);
+        showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
     }
-    hideLoading();
 })();
 
 function renderKPIs(s) {

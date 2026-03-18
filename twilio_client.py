@@ -29,13 +29,16 @@ def get_subaccounts():
     ]
 
 
-def get_messages(account_sid, date_from, date_to, limit=10000):
-    client = get_subaccount_client(account_sid)
-    messages = client.messages.list(
-        date_sent_after=date_from,
-        date_sent_before=date_to,
-        limit=limit,
-    )
+def get_messages(account_sid, date_from, date_to, limit=2000):
+    try:
+        client = get_subaccount_client(account_sid)
+        messages = client.messages.list(
+            date_sent_after=date_from,
+            date_sent_before=date_to,
+            limit=limit,
+        )
+    except TwilioRestException as e:
+        raise Exception(f"Failed to fetch messages for {account_sid}: {e}")
     whatsapp_messages = []
     for m in messages:
         is_whatsapp = (m.from_ and m.from_.startswith("whatsapp:")) or (
@@ -95,11 +98,14 @@ def get_content_templates(account_sid=None):
 
 
 def get_usage_records(account_sid, date_from, date_to):
-    client = get_subaccount_client(account_sid)
-    records = client.usage.records.list(
-        start_date=date_from,
-        end_date=date_to,
-    )
+    try:
+        client = get_subaccount_client(account_sid)
+        records = client.usage.records.list(
+            start_date=date_from,
+            end_date=date_to,
+        )
+    except TwilioRestException as e:
+        raise Exception(f"Failed to fetch usage for {account_sid}: {e}")
     whatsapp_records = []
     for r in records:
         category = r.category.lower() if r.category else ""

@@ -66,6 +66,12 @@
             window.getDateParams = () => `date_from=${dateFrom.value}&date_to=${dateTo.value}`;
             window.showLoading = () => document.getElementById('loading').style.display = 'flex';
             window.hideLoading = () => document.getElementById('loading').style.display = 'none';
+            window.showError = (message) => {
+                const el = document.getElementById('loading');
+                el.innerHTML = '<p style="color:#dc3545;font-weight:bold;margin-bottom:1rem;">Error: ' + message + '</p>' +
+                    '<button class="btn btn-primary" onclick="window.location.reload()">Retry</button>';
+                el.style.display = 'flex';
+            };
         })();
     </script>
 

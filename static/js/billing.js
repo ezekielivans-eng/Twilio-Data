@@ -1,16 +1,23 @@
 (async function() {
     showLoading();
     try {
-        const res = await fetch(`/api/billing?${getDateParams()}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
+        const res = await fetch(`/api/billing?${getDateParams()}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Server error (${res.status})`);
+        }
         const data = await res.json();
         renderKPIs(data);
         renderPieChart(data.per_account);
         renderCategoryChart(data.per_account);
         renderTable(data.per_account);
+        hideLoading();
     } catch(e) {
-        console.error('Failed to load billing:', e);
+        showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
     }
-    hideLoading();
 })();
 
 function renderKPIs(data) {

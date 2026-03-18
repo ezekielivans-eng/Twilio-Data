@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
 from flask import Flask, jsonify, render_template, request
@@ -81,19 +82,33 @@ def get_all_subaccount_data(date_from, date_to):
         {"sid": config.TWILIO_ACCOUNT_SID, "friendly_name": "Main Account"}
     ] + subaccounts
 
-    results = []
-    for acct in all_accounts:
+    def fetch_one(acct):
         sid = acct["sid"]
         messages = cached_messages(sid, date_from, date_to)
         usage = cached_usage(sid, date_from, date_to)
-        results.append(
-            {
-                "sid": sid,
-                "friendly_name": acct["friendly_name"],
-                "messages": messages,
-                "usage": usage,
-            }
-        )
+        return {
+            "sid": sid,
+            "friendly_name": acct["friendly_name"],
+            "messages": messages,
+            "usage": usage,
+        }
+
+    results = []
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(fetch_one, acct): acct for acct in all_accounts}
+        for future in as_completed(futures):
+            try:
+                results.append(future.result())
+            except Exception:
+                acct = futures[future]
+                results.append(
+                    {
+                        "sid": acct["sid"],
+                        "friendly_name": acct["friendly_name"],
+                        "messages": [],
+                        "usage": [],
+                    }
+                )
     return results
 
 
@@ -135,142 +150,157 @@ def billing_page():
 
 @app.route("/api/dashboard")
 def api_dashboard():
-    date_from, date_to = parse_date_params()
-    all_data = get_all_subaccount_data(date_from, date_to)
-
-    all_messages = []
-    for entry in all_data:
-        all_messages.extend(entry["messages"])
-
-    status_summary = aggregate_message_statuses(all_messages)
-    daily = aggregate_by_date(all_messages)
-
-    # Top sub-accounts by volume
-    sub_summary = build_subaccount_summary(all_data)
-
-    # Top templates
-    template_map = cached_templates()
-    template_stats = aggregate_by_template(all_messages, template_map)[:10]
-
-    return jsonify(
-        {
-            "status_summary": status_summary,
-            "daily": daily,
-            "top_subaccounts": sub_summary[:10],
-            "top_templates": template_stats,
-            "date_from": date_from.strftime("%Y-%m-%d"),
-            "date_to": date_to.strftime("%Y-%m-%d"),
-        }
-    )
-
-
-@app.route("/api/subaccounts")
-def api_subaccounts():
-    date_from, date_to = parse_date_params()
-    all_data = get_all_subaccount_data(date_from, date_to)
-    summary = build_subaccount_summary(all_data)
-    return jsonify(
-        {
-            "subaccounts": summary,
-            "date_from": date_from.strftime("%Y-%m-%d"),
-            "date_to": date_to.strftime("%Y-%m-%d"),
-        }
-    )
-
-
-@app.route("/api/subaccounts/<sid>")
-def api_subaccount_detail(sid):
-    date_from, date_to = parse_date_params()
-    messages = cached_messages(sid, date_from, date_to)
-    usage = cached_usage(sid, date_from, date_to)
-
-    status_summary = aggregate_message_statuses(messages)
-    daily = aggregate_by_date(messages)
-
-    template_map = cached_templates()
-    template_stats = aggregate_by_template(messages, template_map)
-
-    # Find account name
-    subaccounts = cached_subaccounts()
-    account_name = sid
-    if sid == config.TWILIO_ACCOUNT_SID:
-        account_name = "Main Account"
-    else:
-        for a in subaccounts:
-            if a["sid"] == sid:
-                account_name = a["friendly_name"]
-                break
-
-    return jsonify(
-        {
-            "account_sid": sid,
-            "account_name": account_name,
-            "status_summary": status_summary,
-            "daily": daily,
-            "templates": template_stats,
-            "usage": usage,
-            "date_from": date_from.strftime("%Y-%m-%d"),
-            "date_to": date_to.strftime("%Y-%m-%d"),
-        }
-    )
-
-
-@app.route("/api/templates")
-def api_templates():
-    date_from, date_to = parse_date_params()
-    account_filter = request.args.get("account_sid")
-
-    if account_filter:
-        all_messages = cached_messages(account_filter, date_from, date_to)
-    else:
+    try:
+        date_from, date_to = parse_date_params()
         all_data = get_all_subaccount_data(date_from, date_to)
+
         all_messages = []
         for entry in all_data:
             all_messages.extend(entry["messages"])
 
-    template_map = cached_templates()
-    template_stats = aggregate_by_template(all_messages, template_map)
+        status_summary = aggregate_message_statuses(all_messages)
+        daily = aggregate_by_date(all_messages)
 
-    # Also return list of sub-accounts for the filter dropdown
-    subaccounts = cached_subaccounts()
-    account_list = [
-        {"sid": config.TWILIO_ACCOUNT_SID, "friendly_name": "Main Account"}
-    ] + [{"sid": a["sid"], "friendly_name": a["friendly_name"]} for a in subaccounts]
+        # Top sub-accounts by volume
+        sub_summary = build_subaccount_summary(all_data)
 
-    return jsonify(
-        {
-            "templates": template_stats,
-            "subaccounts": account_list,
-            "date_from": date_from.strftime("%Y-%m-%d"),
-            "date_to": date_to.strftime("%Y-%m-%d"),
-        }
-    )
+        # Top templates
+        template_map = cached_templates()
+        template_stats = aggregate_by_template(all_messages, template_map)[:10]
+
+        return jsonify(
+            {
+                "status_summary": status_summary,
+                "daily": daily,
+                "top_subaccounts": sub_summary[:10],
+                "top_templates": template_stats,
+                "date_from": date_from.strftime("%Y-%m-%d"),
+                "date_to": date_to.strftime("%Y-%m-%d"),
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/subaccounts")
+def api_subaccounts():
+    try:
+        date_from, date_to = parse_date_params()
+        all_data = get_all_subaccount_data(date_from, date_to)
+        summary = build_subaccount_summary(all_data)
+        return jsonify(
+            {
+                "subaccounts": summary,
+                "date_from": date_from.strftime("%Y-%m-%d"),
+                "date_to": date_to.strftime("%Y-%m-%d"),
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/subaccounts/<sid>")
+def api_subaccount_detail(sid):
+    try:
+        date_from, date_to = parse_date_params()
+        messages = cached_messages(sid, date_from, date_to)
+        usage = cached_usage(sid, date_from, date_to)
+
+        status_summary = aggregate_message_statuses(messages)
+        daily = aggregate_by_date(messages)
+
+        template_map = cached_templates()
+        template_stats = aggregate_by_template(messages, template_map)
+
+        # Find account name
+        subaccounts = cached_subaccounts()
+        account_name = sid
+        if sid == config.TWILIO_ACCOUNT_SID:
+            account_name = "Main Account"
+        else:
+            for a in subaccounts:
+                if a["sid"] == sid:
+                    account_name = a["friendly_name"]
+                    break
+
+        return jsonify(
+            {
+                "account_sid": sid,
+                "account_name": account_name,
+                "status_summary": status_summary,
+                "daily": daily,
+                "templates": template_stats,
+                "usage": usage,
+                "date_from": date_from.strftime("%Y-%m-%d"),
+                "date_to": date_to.strftime("%Y-%m-%d"),
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/templates")
+def api_templates():
+    try:
+        date_from, date_to = parse_date_params()
+        account_filter = request.args.get("account_sid")
+
+        if account_filter:
+            all_messages = cached_messages(account_filter, date_from, date_to)
+        else:
+            all_data = get_all_subaccount_data(date_from, date_to)
+            all_messages = []
+            for entry in all_data:
+                all_messages.extend(entry["messages"])
+
+        template_map = cached_templates()
+        template_stats = aggregate_by_template(all_messages, template_map)
+
+        # Also return list of sub-accounts for the filter dropdown
+        subaccounts = cached_subaccounts()
+        account_list = [
+            {"sid": config.TWILIO_ACCOUNT_SID, "friendly_name": "Main Account"}
+        ] + [{"sid": a["sid"], "friendly_name": a["friendly_name"]} for a in subaccounts]
+
+        return jsonify(
+            {
+                "templates": template_stats,
+                "subaccounts": account_list,
+                "date_from": date_from.strftime("%Y-%m-%d"),
+                "date_to": date_to.strftime("%Y-%m-%d"),
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/billing")
 def api_billing():
-    date_from, date_to = parse_date_params()
-    all_data = get_all_subaccount_data(date_from, date_to)
+    try:
+        date_from, date_to = parse_date_params()
+        all_data = get_all_subaccount_data(date_from, date_to)
 
-    usage_by_account = {}
-    account_names = {}
-    for entry in all_data:
-        usage_by_account[entry["sid"]] = entry["usage"]
-        account_names[entry["sid"]] = entry["friendly_name"]
+        usage_by_account = {}
+        account_names = {}
+        for entry in all_data:
+            usage_by_account[entry["sid"]] = entry["usage"]
+            account_names[entry["sid"]] = entry["friendly_name"]
 
-    billing = aggregate_billing(usage_by_account, account_names)
+        billing = aggregate_billing(usage_by_account, account_names)
 
-    # Calculate daily average and projection
-    days_in_range = (date_to - date_from).days or 1
-    daily_avg = billing["total_spend"] / days_in_range
-    projected_monthly = daily_avg * 30
+        # Calculate daily average and projection
+        days_in_range = (date_to - date_from).days or 1
+        daily_avg = billing["total_spend"] / days_in_range
+        projected_monthly = daily_avg * 30
 
-    billing["daily_average"] = round(daily_avg, 4)
-    billing["projected_monthly"] = round(projected_monthly, 2)
-    billing["date_from"] = date_from.strftime("%Y-%m-%d")
-    billing["date_to"] = date_to.strftime("%Y-%m-%d")
+        billing["daily_average"] = round(daily_avg, 4)
+        billing["projected_monthly"] = round(projected_monthly, 2)
+        billing["date_from"] = date_from.strftime("%Y-%m-%d")
+        billing["date_to"] = date_to.strftime("%Y-%m-%d")
 
-    return jsonify(billing)
+        return jsonify(billing)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/cache/clear", methods=["POST"])
