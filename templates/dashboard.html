@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Twilio WhatsApp Analytics{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="kpi-cards" id="kpiCards">
+    <div class="kpi-card">
+        <div class="kpi-label">Total Messages</div>
+        <div class="kpi-value" id="kpiTotal">-</div>
+    </div>
+    <div class="kpi-card kpi-success">
+        <div class="kpi-label">Delivery Rate</div>
+        <div class="kpi-value" id="kpiDelivery">-</div>
+    </div>
+    <div class="kpi-card kpi-info">
+        <div class="kpi-label">Read Rate</div>
+        <div class="kpi-value" id="kpiRead">-</div>
+    </div>
+    <div class="kpi-card kpi-danger">
+        <div class="kpi-label">Error Rate</div>
+        <div class="kpi-value" id="kpiError">-</div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-container">
+        <h3>Message Status Distribution</h3>
+        <canvas id="statusChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h3>Messages Over Time</h3>
+        <canvas id="timelineChart"></canvas>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-container">
+        <h3>Top Sub-Accounts by Volume</h3>
+        <canvas id="subaccountsChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h3>Top Templates by Delivery Rate</h3>
+        <canvas id="templatesChart"></canvas>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

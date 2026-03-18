@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Sub-Account Detail - Twilio WhatsApp Analytics{% endblock %}
+
+{% block content %}
+<h1 id="accountTitle">Sub-Account: {{ account_sid }}</h1>
+
+<div class="kpi-cards" id="kpiCards">
+    <div class="kpi-card">
+        <div class="kpi-label">Total Messages</div>
+        <div class="kpi-value" id="kpiTotal">-</div>
+    </div>
+    <div class="kpi-card kpi-success">
+        <div class="kpi-label">Delivery Rate</div>
+        <div class="kpi-value" id="kpiDelivery">-</div>
+    </div>
+    <div class="kpi-card kpi-info">
+        <div class="kpi-label">Read Rate</div>
+        <div class="kpi-value" id="kpiRead">-</div>
+    </div>
+    <div class="kpi-card kpi-danger">
+        <div class="kpi-label">Error Rate</div>
+        <div class="kpi-value" id="kpiError">-</div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-container">
+        <h3>Message Status Distribution</h3>
+        <canvas id="statusChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h3>Messages Over Time</h3>
+        <canvas id="timelineChart"></canvas>
+    </div>
+</div>
+
+<div class="chart-container">
+    <h3>Template Performance</h3>
+    <canvas id="templateChart"></canvas>
+</div>
+
+<div class="table-container">
+    <h3>Templates Used</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Template Name</th>
+                <th>Total</th>
+                <th>Delivered</th>
+                <th>Read</th>
+                <th>Failed</th>
+                <th>Delivery Rate</th>
+                <th>Read Rate</th>
+                <th>Error Rate</th>
+            </tr>
+        </thead>
+        <tbody id="templatesBody"></tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const ACCOUNT_SID = "{{ account_sid }}";
+</script>
+<script src="{{ url_for('static', filename='js/subaccount_detail.js') }}"></script>
+{% endblock %}

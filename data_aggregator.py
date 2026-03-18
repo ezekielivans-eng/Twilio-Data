@@ -1,0 +1,162 @@
+from collections import defaultdict
+from datetime import datetime
+
+
+def aggregate_message_statuses(messages):
+    counts = defaultdict(int)
+    for m in messages:
+        counts[m["status"]] += 1
+    total = len(messages)
+    delivered = counts.get("delivered", 0)
+    read = counts.get("read", 0)
+    failed = counts.get("failed", 0)
+    undelivered = counts.get("undelivered", 0)
+    errors = failed + undelivered
+
+    return {
+        "queued": counts.get("queued", 0),
+        "sending": counts.get("sending", 0),
+        "sent": counts.get("sent", 0),
+        "delivered": delivered,
+        "read": read,
+        "undelivered": undelivered,
+        "failed": failed,
+        "total": total,
+        "delivery_rate": round((delivered + read) / total * 100, 2) if total else 0,
+        "read_rate": round(read / total * 100, 2) if total else 0,
+        "error_rate": round(errors / total * 100, 2) if total else 0,
+    }
+
+
+def aggregate_by_date(messages):
+    daily = defaultdict(lambda: defaultdict(int))
+    for m in messages:
+        date_str = m.get("date_sent") or m.get("date_created") or ""
+        if date_str:
+            try:
+                day = datetime.fromisoformat(date_str.replace("+00:00", "")).strftime(
+                    "%Y-%m-%d"
+                )
+            except (ValueError, AttributeError):
+                day = date_str[:10]
+        else:
+            continue
+        daily[day][m["status"]] += 1
+        daily[day]["total"] += 1
+
+    sorted_days = sorted(daily.keys())
+    return {
+        "dates": sorted_days,
+        "series": {
+            status: [daily[d].get(status, 0) for d in sorted_days]
+            for status in [
+                "sent",
+                "delivered",
+                "read",
+                "failed",
+                "undelivered",
+                "queued",
+            ]
+        },
+        "totals": [daily[d].get("total", 0) for d in sorted_days],
+    }
+
+
+def aggregate_by_template(messages, template_map=None):
+    if template_map is None:
+        template_map = {}
+
+    groups = defaultdict(list)
+    for m in messages:
+        content_sid = m.get("content_sid")
+        if content_sid:
+            groups[content_sid].append(m)
+        else:
+            body_key = (m.get("body") or "")[:50] or "Unknown"
+            groups[f"body:{body_key}"].append(m)
+
+    results = []
+    for key, msgs in groups.items():
+        stats = aggregate_message_statuses(msgs)
+        if key.startswith("body:"):
+            name = key[5:]
+            template_id = None
+        else:
+            template_info = template_map.get(key, {})
+            name = template_info.get("friendly_name", key)
+            template_id = key
+
+        results.append(
+            {
+                "template_id": template_id,
+                "template_name": name,
+                "total": stats["total"],
+                "delivered": stats["delivered"],
+                "read": stats["read"],
+                "failed": stats["failed"],
+                "undelivered": stats["undelivered"],
+                "delivery_rate": stats["delivery_rate"],
+                "read_rate": stats["read_rate"],
+                "error_rate": stats["error_rate"],
+            }
+        )
+
+    results.sort(key=lambda x: x["total"], reverse=True)
+    return results
+
+
+def aggregate_billing(usage_records_by_account, account_names=None):
+    if account_names is None:
+        account_names = {}
+
+    per_account = []
+    total_spend = 0.0
+
+    for account_sid, records in usage_records_by_account.items():
+        account_total = sum(r["price"] for r in records)
+        total_spend += account_total
+        per_account.append(
+            {
+                "account_sid": account_sid,
+                "account_name": account_names.get(account_sid, account_sid),
+                "total_spend": round(account_total, 4),
+                "categories": _group_by_category(records),
+            }
+        )
+
+    per_account.sort(key=lambda x: x["total_spend"], reverse=True)
+    return {
+        "total_spend": round(total_spend, 4),
+        "per_account": per_account,
+    }
+
+
+def _group_by_category(records):
+    cats = defaultdict(float)
+    for r in records:
+        cats[r["category"]] += r["price"]
+    return {k: round(v, 4) for k, v in sorted(cats.items(), key=lambda x: -x[1])}
+
+
+def build_subaccount_summary(subaccounts_data):
+    summary = []
+    for entry in subaccounts_data:
+        stats = aggregate_message_statuses(entry["messages"])
+        spend = sum(r["price"] for r in entry.get("usage", []))
+        summary.append(
+            {
+                "sid": entry["sid"],
+                "friendly_name": entry["friendly_name"],
+                "total_messages": stats["total"],
+                "delivered": stats["delivered"],
+                "read": stats["read"],
+                "failed": stats["failed"],
+                "undelivered": stats["undelivered"],
+                "delivery_rate": stats["delivery_rate"],
+                "read_rate": stats["read_rate"],
+                "error_rate": stats["error_rate"],
+                "spend": round(spend, 4),
+            }
+        )
+    summary.sort(key=lambda x: x["total_messages"], reverse=True)
+    return summary

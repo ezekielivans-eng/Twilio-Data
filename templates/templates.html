@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Template Performance - Twilio WhatsApp Analytics{% endblock %}
+
+{% block content %}
+<h1>WhatsApp Template Performance</h1>
+
+<div class="charts-grid">
+    <div class="chart-container">
+        <h3>Top Templates: Delivery vs Read Rate</h3>
+        <canvas id="ratesChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h3>Volume vs Delivery Rate</h3>
+        <canvas id="scatterChart"></canvas>
+    </div>
+</div>
+
+<div class="table-container">
+    <table id="templatesTable">
+        <thead>
+            <tr>
+                <th data-sort="template_name">Template Name</th>
+                <th data-sort="total">Total Sent</th>
+                <th data-sort="delivered">Delivered</th>
+                <th data-sort="read">Read</th>
+                <th data-sort="failed">Failed</th>
+                <th data-sort="undelivered">Undelivered</th>
+                <th data-sort="delivery_rate">Delivery Rate</th>
+                <th data-sort="read_rate">Read Rate</th>
+                <th data-sort="error_rate">Error Rate</th>
+            </tr>
+        </thead>
+        <tbody id="templatesBody"></tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/templates.js') }}"></script>
+{% endblock %}

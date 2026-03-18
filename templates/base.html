@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Twilio WhatsApp Analytics{% endblock %}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="nav-logo">&#9993;</span>
+            Twilio WhatsApp Analytics
+        </div>
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link {% if request.path in ['/', '/dashboard'] %}active{% endif %}">Dashboard</a>
+            <a href="/subaccounts" class="nav-link {% if '/subaccounts' in request.path %}active{% endif %}">Sub-Accounts</a>
+            <a href="/templates" class="nav-link {% if request.path == '/templates' %}active{% endif %}">Templates</a>
+            <a href="/billing" class="nav-link {% if request.path == '/billing' %}active{% endif %}">Billing</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="date-picker">
+            <label>From: <input type="date" id="dateFrom"></label>
+            <label>To: <input type="date" id="dateTo"></label>
+            <button id="applyDates" class="btn btn-primary">Apply</button>
+            <button id="refreshCache" class="btn btn-secondary">Refresh Data</button>
+        </div>
+
+        <div id="loading" class="loading-overlay" style="display:none;">
+            <div class="spinner"></div>
+            <p>Loading data from Twilio...</p>
+        </div>
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+        // Date picker logic shared across all pages
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const today = new Date().toISOString().split('T')[0];
+            const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+
+            const dateFrom = document.getElementById('dateFrom');
+            const dateTo = document.getElementById('dateTo');
+
+            dateFrom.value = params.get('date_from') || thirtyDaysAgo;
+            dateTo.value = params.get('date_to') || today;
+
+            document.getElementById('applyDates').addEventListener('click', () => {
+                const url = new URL(window.location);
+                url.searchParams.set('date_from', dateFrom.value);
+                url.searchParams.set('date_to', dateTo.value);
+                window.location = url;
+            });
+
+            document.getElementById('refreshCache').addEventListener('click', async () => {
+                await fetch('/api/cache/clear', {method: 'POST'});
+                window.location.reload();
+            });
+
+            // Expose helper for JS files
+            window.getDateParams = () => `date_from=${dateFrom.value}&date_to=${dateTo.value}`;
+            window.showLoading = () => document.getElementById('loading').style.display = 'flex';
+            window.hideLoading = () => document.getElementById('loading').style.display = 'none';
+        })();
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Billing - Twilio WhatsApp Analytics{% endblock %}
+
+{% block content %}
+<h1>Billing & Spending</h1>
+
+<div class="kpi-cards">
+    <div class="kpi-card">
+        <div class="kpi-label">Total Spend</div>
+        <div class="kpi-value" id="kpiTotalSpend">-</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Daily Average</div>
+        <div class="kpi-value" id="kpiDailyAvg">-</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Projected Monthly</div>
+        <div class="kpi-value" id="kpiProjected">-</div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-container">
+        <h3>Spend Distribution by Sub-Account</h3>
+        <canvas id="spendPieChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h3>Spend by Category</h3>
+        <canvas id="categoryChart"></canvas>
+    </div>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Sub-Account</th>
+                <th>Account SID</th>
+                <th>Total Spend</th>
+                <th>Categories</th>
+            </tr>
+        </thead>
+        <tbody id="billingBody"></tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/billing.js') }}"></script>
+{% endblock %}

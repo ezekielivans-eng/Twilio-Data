@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Sub-Accounts - Twilio WhatsApp Analytics{% endblock %}
+
+{% block content %}
+<h1>Sub-Accounts</h1>
+
+<div class="chart-container">
+    <h3>Spend by Sub-Account</h3>
+    <canvas id="spendChart"></canvas>
+</div>
+
+<div class="table-container">
+    <table id="subaccountsTable">
+        <thead>
+            <tr>
+                <th data-sort="friendly_name">Account Name</th>
+                <th data-sort="total_messages">Total Messages</th>
+                <th data-sort="delivered">Delivered</th>
+                <th data-sort="read">Read</th>
+                <th data-sort="failed">Failed</th>
+                <th data-sort="delivery_rate">Delivery Rate</th>
+                <th data-sort="read_rate">Read Rate</th>
+                <th data-sort="error_rate">Error Rate</th>
+                <th data-sort="spend">Spend</th>
+            </tr>
+        </thead>
+        <tbody id="subaccountsBody"></tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/subaccounts.js') }}"></script>
+{% endblock %}

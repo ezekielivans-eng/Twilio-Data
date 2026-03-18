@@ -1,0 +1,80 @@
+(async function() {
+    showLoading();
+    try {
+        const res = await fetch(`/api/billing?${getDateParams()}`);
+        const data = await res.json();
+        renderKPIs(data);
+        renderPieChart(data.per_account);
+        renderCategoryChart(data.per_account);
+        renderTable(data.per_account);
+    } catch(e) {
+        console.error('Failed to load billing:', e);
+    }
+    hideLoading();
+})();
+
+function renderKPIs(data) {
+    document.getElementById('kpiTotalSpend').textContent = `$${data.total_spend.toFixed(2)}`;
+    document.getElementById('kpiDailyAvg').textContent = `$${data.daily_average.toFixed(2)}`;
+    document.getElementById('kpiProjected').textContent = `$${data.projected_monthly.toFixed(2)}`;
+}
+
+function renderPieChart(accounts) {
+    const filtered = accounts.filter(a => a.total_spend > 0);
+    const colors = ['#25d366','#0dcaf0','#ffc107','#dc3545','#fd7e14','#6c757d','#198754','#6f42c1','#d63384','#0d6efd'];
+    new Chart(document.getElementById('spendPieChart'), {
+        type: 'pie',
+        data: {
+            labels: filtered.map(a => a.account_name),
+            datasets: [{
+                data: filtered.map(a => a.total_spend),
+                backgroundColor: colors.slice(0, filtered.length)
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+}
+
+function renderCategoryChart(accounts) {
+    // Aggregate all categories across accounts
+    const allCats = {};
+    accounts.forEach(a => {
+        Object.entries(a.categories).forEach(([cat, amount]) => {
+            allCats[cat] = (allCats[cat] || 0) + amount;
+        });
+    });
+
+    const sorted = Object.entries(allCats).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const colors = ['#25d366','#0dcaf0','#ffc107','#dc3545','#fd7e14','#6c757d','#198754','#6f42c1','#d63384','#0d6efd'];
+
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'bar',
+        data: {
+            labels: sorted.map(([cat]) => cat),
+            datasets: [{
+                label: 'Spend ($)',
+                data: sorted.map(([, amount]) => amount),
+                backgroundColor: colors.slice(0, sorted.length)
+            }]
+        },
+        options: {
+            responsive: true,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+function renderTable(accounts) {
+    document.getElementById('billingBody').innerHTML = accounts.map(a => `
+        <tr>
+            <td><strong>${a.account_name}</strong></td>
+            <td style="font-size:0.8rem;color:#888">${a.account_sid}</td>
+            <td><strong>$${a.total_spend.toFixed(2)}</strong></td>
+            <td style="font-size:0.8rem">${Object.entries(a.categories).map(([c,v]) => `${c}: $${v.toFixed(2)}`).join('<br>')}</td>
+        </tr>
+    `).join('');
+}
