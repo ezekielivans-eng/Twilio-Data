@@ -1,32 +1,45 @@
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
+from twilio.http.http_client import TwilioHttpClient
 import config
+
+TWILIO_TIMEOUT = 10  # seconds
 
 
 def get_client():
-    return Client(config.TWILIO_ACCOUNT_SID, config.TWILIO_AUTH_TOKEN)
+    http_client = TwilioHttpClient(max_retries=0, timeout=TWILIO_TIMEOUT)
+    return Client(
+        config.TWILIO_ACCOUNT_SID,
+        config.TWILIO_AUTH_TOKEN,
+        http_client=http_client,
+    )
 
 
 def get_subaccount_client(subaccount_sid):
+    http_client = TwilioHttpClient(max_retries=0, timeout=TWILIO_TIMEOUT)
     return Client(
         config.TWILIO_ACCOUNT_SID,
         config.TWILIO_AUTH_TOKEN,
         account_sid=subaccount_sid,
+        http_client=http_client,
     )
 
 
 def get_subaccounts():
-    client = get_client()
-    accounts = client.api.accounts.list(status="active")
-    return [
-        {
-            "sid": a.sid,
-            "friendly_name": a.friendly_name,
-            "status": a.status,
-            "date_created": str(a.date_created),
-        }
-        for a in accounts
-    ]
+    try:
+        client = get_client()
+        accounts = client.api.accounts.list(status="active")
+        return [
+            {
+                "sid": a.sid,
+                "friendly_name": a.friendly_name,
+                "status": a.status,
+                "date_created": str(a.date_created),
+            }
+            for a in accounts
+        ]
+    except Exception:
+        return []
 
 
 def get_messages(account_sid, date_from, date_to, limit=2000):
@@ -37,8 +50,8 @@ def get_messages(account_sid, date_from, date_to, limit=2000):
             date_sent_before=date_to,
             limit=limit,
         )
-    except TwilioRestException as e:
-        raise Exception(f"Failed to fetch messages for {account_sid}: {e}")
+    except Exception:
+        return []
     whatsapp_messages = []
     for m in messages:
         is_whatsapp = (m.from_ and m.from_.startswith("whatsapp:")) or (
@@ -93,7 +106,7 @@ def get_content_templates(account_sid=None):
                 "template_type": template_type,
             }
         return result
-    except TwilioRestException:
+    except Exception:
         return {}
 
 
@@ -104,8 +117,8 @@ def get_usage_records(account_sid, date_from, date_to):
             start_date=date_from,
             end_date=date_to,
         )
-    except TwilioRestException as e:
-        raise Exception(f"Failed to fetch usage for {account_sid}: {e}")
+    except Exception:
+        return []
     whatsapp_records = []
     for r in records:
         category = r.category.lower() if r.category else ""
