@@ -218,18 +218,29 @@ def api_subaccount_detail(sid):
 @app.route("/api/templates")
 def api_templates():
     date_from, date_to = parse_date_params()
-    all_data = get_all_subaccount_data(date_from, date_to)
+    account_filter = request.args.get("account_sid")
 
-    all_messages = []
-    for entry in all_data:
-        all_messages.extend(entry["messages"])
+    if account_filter:
+        all_messages = cached_messages(account_filter, date_from, date_to)
+    else:
+        all_data = get_all_subaccount_data(date_from, date_to)
+        all_messages = []
+        for entry in all_data:
+            all_messages.extend(entry["messages"])
 
     template_map = cached_templates()
     template_stats = aggregate_by_template(all_messages, template_map)
 
+    # Also return list of sub-accounts for the filter dropdown
+    subaccounts = cached_subaccounts()
+    account_list = [
+        {"sid": config.TWILIO_ACCOUNT_SID, "friendly_name": "Main Account"}
+    ] + [{"sid": a["sid"], "friendly_name": a["friendly_name"]} for a in subaccounts]
+
     return jsonify(
         {
             "templates": template_stats,
+            "subaccounts": account_list,
             "date_from": date_from.strftime("%Y-%m-%d"),
             "date_to": date_to.strftime("%Y-%m-%d"),
         }

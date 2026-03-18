@@ -62,18 +62,34 @@ def get_messages(account_sid, date_from, date_to, limit=10000):
     return whatsapp_messages
 
 
+def _extract_template_body(content_obj):
+    """Extract body text and type from a Twilio Content template object."""
+    types = getattr(content_obj, "types", None) or {}
+    if isinstance(types, str):
+        return "", "unknown"
+    for type_key, type_val in types.items():
+        template_type = type_key.replace("twilio/", "")
+        if isinstance(type_val, dict):
+            body = type_val.get("body", "")
+            return body, template_type
+    return "", "unknown"
+
+
 def get_content_templates(account_sid=None):
     try:
         client = get_client()
         contents = client.content.v1.contents.list(limit=200)
-        return {
-            c.sid: {
+        result = {}
+        for c in contents:
+            body, template_type = _extract_template_body(c)
+            result[c.sid] = {
                 "sid": c.sid,
                 "friendly_name": c.friendly_name,
                 "language": getattr(c, "language", "unknown"),
+                "body": body,
+                "template_type": template_type,
             }
-            for c in contents
-        }
+        return result
     except TwilioRestException:
         return {}
 

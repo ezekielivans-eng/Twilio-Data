@@ -2,7 +2,39 @@
 {% block title %}Template Performance - Twilio WhatsApp Analytics{% endblock %}
 
 {% block content %}
-<h1>WhatsApp Template Performance</h1>
+<h1>Content Template Performance</h1>
+
+<div class="template-filters">
+    <div class="filter-group">
+        <label for="accountFilter">Sub-Account:</label>
+        <select id="accountFilter" class="filter-select">
+            <option value="">All Accounts</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="templateSearch">Search:</label>
+        <input type="text" id="templateSearch" class="filter-input" placeholder="Search templates...">
+    </div>
+</div>
+
+<div class="kpi-cards" id="templateKpis">
+    <div class="kpi-card">
+        <div class="kpi-label">Templates Used</div>
+        <div class="kpi-value" id="kpiTotalTemplates">-</div>
+    </div>
+    <div class="kpi-card kpi-success">
+        <div class="kpi-label">Avg Delivery Rate</div>
+        <div class="kpi-value" id="kpiAvgDelivery">-</div>
+    </div>
+    <div class="kpi-card kpi-info">
+        <div class="kpi-label">Avg Read Rate</div>
+        <div class="kpi-value" id="kpiAvgRead">-</div>
+    </div>
+    <div class="kpi-card kpi-success">
+        <div class="kpi-label">Top Performer</div>
+        <div class="kpi-value kpi-value-sm" id="kpiTopPerformer">-</div>
+    </div>
+</div>
 
 <div class="charts-grid">
     <div class="chart-container">
@@ -16,15 +48,16 @@
 </div>
 
 <div class="table-container">
+    <h3>All Content Templates <span class="table-hint">(click a row to view body text)</span></h3>
     <table id="templatesTable">
         <thead>
             <tr>
                 <th data-sort="template_name">Template Name</th>
+                <th data-sort="template_type">Type</th>
                 <th data-sort="total">Total Sent</th>
                 <th data-sort="delivered">Delivered</th>
                 <th data-sort="read">Read</th>
                 <th data-sort="failed">Failed</th>
-                <th data-sort="undelivered">Undelivered</th>
                 <th data-sort="delivery_rate">Delivery Rate</th>
                 <th data-sort="read_rate">Read Rate</th>
                 <th data-sort="error_rate">Error Rate</th>
@@ -32,6 +65,9 @@
         </thead>
         <tbody id="templatesBody"></tbody>
     </table>
+    <div id="emptyState" class="empty-state" style="display:none;">
+        <p>No content templates found for the selected filters.</p>
+    </div>
 </div>
 {% endblock %}
 

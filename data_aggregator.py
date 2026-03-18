@@ -71,25 +71,22 @@ def aggregate_by_template(messages, template_map=None):
         content_sid = m.get("content_sid")
         if content_sid:
             groups[content_sid].append(m)
-        else:
-            body_key = (m.get("body") or "")[:50] or "Unknown"
-            groups[f"body:{body_key}"].append(m)
+        # Skip messages without content_sid (customer replies, button clicks, free-form text)
 
     results = []
     for key, msgs in groups.items():
         stats = aggregate_message_statuses(msgs)
-        if key.startswith("body:"):
-            name = key[5:]
-            template_id = None
-        else:
-            template_info = template_map.get(key, {})
-            name = template_info.get("friendly_name", key)
-            template_id = key
+        template_info = template_map.get(key, {})
+        name = template_info.get("friendly_name", key)
+        body = template_info.get("body", "")
+        template_type = template_info.get("template_type", "unknown")
 
         results.append(
             {
-                "template_id": template_id,
+                "template_id": key,
                 "template_name": name,
+                "body": body,
+                "template_type": template_type,
                 "total": stats["total"],
                 "delivered": stats["delivered"],
                 "read": stats["read"],
