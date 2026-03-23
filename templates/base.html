@@ -81,6 +81,12 @@
                     '<button class="btn btn-primary" onclick="window.location.reload()">Retry</button>';
                 el.style.display = 'flex';
             };
+            window.getStatusFilterValues = () => {
+                const container = document.getElementById('statusFilter');
+                if (!container) return '';
+                const checked = [...container.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value);
+                return checked.join(',');
+            };
             window.safeCacheSet = (key, data) => {
                 try { sessionStorage.setItem(key, JSON.stringify(data)); } catch(e) { /* quota exceeded */ }
             };

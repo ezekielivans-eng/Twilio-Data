@@ -73,7 +73,7 @@ def get_messages(account_sid, date_from, date_to, limit=5000):
                     "date_sent": str(m.date_sent) if m.date_sent else None,
                     "date_created": str(m.date_created),
                     "direction": m.direction,
-                    "body": (m.body or "")[:100],
+                    "body": m.body or "",
                     "error_code": m.error_code,
                     "error_message": m.error_message,
                     "price": m.price,
@@ -89,12 +89,26 @@ def _extract_template_body(content_obj):
     types = getattr(content_obj, "types", None) or {}
     if isinstance(types, str):
         return "", "unknown"
+    body_parts = []
+    template_type = "unknown"
     for type_key, type_val in types.items():
         template_type = type_key.replace("twilio/", "")
         if isinstance(type_val, dict):
-            body = type_val.get("body", "")
-            return body, template_type
-    return "", "unknown"
+            # Direct body field
+            if type_val.get("body"):
+                body_parts.append(type_val["body"])
+            # Card title + body
+            if type_val.get("title"):
+                body_parts.append(type_val["title"])
+            # Subtitle for cards
+            if type_val.get("subtitle"):
+                body_parts.append(type_val["subtitle"])
+            # List picker body + items
+            if type_val.get("items"):
+                for item in type_val["items"]:
+                    if isinstance(item, dict) and item.get("item"):
+                        body_parts.append(item["item"])
+    return "\n".join(body_parts) if body_parts else "", template_type
 
 
 def _fetch_templates_for_client(client):

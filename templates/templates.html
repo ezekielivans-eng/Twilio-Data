@@ -20,15 +20,15 @@
         </select>
     </div>
     <div class="filter-group">
-        <label for="statusFilter">Status:</label>
-        <select id="statusFilter" class="filter-select">
-            <option value="">All Statuses</option>
-            <option value="delivered">Delivered</option>
-            <option value="read">Read</option>
-            <option value="sent">Sent</option>
-            <option value="failed">Failed</option>
-            <option value="undelivered">Undelivered</option>
-        </select>
+        <label>Status:</label>
+        <div class="checkbox-group" id="statusFilter">
+            <label class="checkbox-label"><input type="checkbox" value="delivered" checked> Delivered</label>
+            <label class="checkbox-label"><input type="checkbox" value="read" checked> Read</label>
+            <label class="checkbox-label"><input type="checkbox" value="sent" checked> Sent</label>
+            <label class="checkbox-label"><input type="checkbox" value="failed" checked> Failed</label>
+            <label class="checkbox-label"><input type="checkbox" value="undelivered" checked> Undelivered</label>
+            <label class="checkbox-label"><input type="checkbox" value="queued" checked> Queued</label>
+        </div>
     </div>
     <div class="filter-group">
         <label for="templateSearch">Search:</label>
@@ -55,15 +55,9 @@
     </div>
 </div>
 
-<div class="charts-grid">
-    <div class="chart-container">
-        <h3>Top Templates: Delivery vs Read Rate</h3>
-        <canvas id="ratesChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <h3>Volume vs Delivery Rate</h3>
-        <canvas id="scatterChart"></canvas>
-    </div>
+<div class="chart-container">
+    <h3>Top Templates: Delivery vs Read Rate</h3>
+    <canvas id="ratesChart"></canvas>
 </div>
 
 <div class="table-container">

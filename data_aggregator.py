@@ -70,11 +70,11 @@ def aggregate_by_template(messages, template_map=None):
         template_map = {}
 
     # Build reverse lookup: body prefix (first 100 chars) → content SID
-    # Messages are stored with body truncated to 100 chars, so this matches exactly.
     body_prefix_to_sid = {}
     for sid, info in template_map.items():
         body = (info.get("body") or "").strip()
         if body:
+            # Match on first 100 chars to handle Twilio's body truncation
             body_prefix_to_sid[body[:100]] = sid
 
     groups = defaultdict(list)

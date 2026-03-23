@@ -5,10 +5,10 @@ let templatesChartInstance = null;
 
 function getFilterParams() {
     const dir = document.getElementById('directionFilter')?.value || '';
-    const status = document.getElementById('statusFilter')?.value || '';
+    const status = getStatusFilterValues();
     let params = getDateParams();
     if (dir) params += `&direction=${dir}`;
-    if (status) params += `&status=${status}`;
+    if (status) params += `&status=${encodeURIComponent(status)}`;
     return params;
 }
 
@@ -43,7 +43,9 @@ async function loadDashboard() {
 
 // Filter change handlers
 document.getElementById('directionFilter')?.addEventListener('change', loadDashboard);
-document.getElementById('statusFilter')?.addEventListener('change', loadDashboard);
+document.getElementById('statusFilter')?.addEventListener('change', (e) => {
+    if (e.target.type === 'checkbox') loadDashboard();
+});
 
 // Initial load
 loadDashboard();

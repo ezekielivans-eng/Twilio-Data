@@ -2,10 +2,10 @@ let spendChartInstance = null;
 
 function getSubFilterParams() {
     const dir = document.getElementById('directionFilter')?.value || '';
-    const status = document.getElementById('statusFilter')?.value || '';
+    const status = getStatusFilterValues();
     let params = getDateParams();
     if (dir) params += `&direction=${dir}`;
-    if (status) params += `&status=${status}`;
+    if (status) params += `&status=${encodeURIComponent(status)}`;
     return params;
 }
 
@@ -40,7 +40,9 @@ async function loadSubaccounts() {
 
 // Filter change handlers
 document.getElementById('directionFilter')?.addEventListener('change', loadSubaccounts);
-document.getElementById('statusFilter')?.addEventListener('change', loadSubaccounts);
+document.getElementById('statusFilter')?.addEventListener('change', (e) => {
+    if (e.target.type === 'checkbox') loadSubaccounts();
+});
 
 // Initial load
 loadSubaccounts();

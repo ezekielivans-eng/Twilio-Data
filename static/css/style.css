@@ -259,6 +259,29 @@ tbody tr.clickable:hover { background: #e8f5e9; }
 .filter-input { min-width: 220px; }
 .filter-select:focus, .filter-input:focus { outline: none; border-color: #25d366; box-shadow: 0 0 0 2px rgba(37,211,102,0.15); }
 
+/* Checkbox group for multi-select filters */
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.82rem;
+    color: #555;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.checkbox-label input[type="checkbox"] {
+    accent-color: #25d366;
+    cursor: pointer;
+}
+
 /* Template type badges */
 .type-badge {
     display: inline-block;

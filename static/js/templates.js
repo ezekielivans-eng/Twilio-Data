@@ -5,11 +5,11 @@ let accountListPopulated = false;
 function getTemplateFilterParams() {
     const accountSid = document.getElementById('accountFilter')?.value || '';
     const dir = document.getElementById('directionFilter')?.value || '';
-    const status = document.getElementById('statusFilter')?.value || '';
+    const status = getStatusFilterValues();
     let params = getDateParams();
     if (accountSid) params += `&account_sid=${accountSid}`;
     if (dir) params += `&direction=${dir}`;
-    if (status) params += `&status=${status}`;
+    if (status) params += `&status=${encodeURIComponent(status)}`;
     return params;
 }
 
@@ -56,7 +56,9 @@ async function loadTemplates() {
 // Filter change handlers - all trigger a fresh load
 document.getElementById('accountFilter').addEventListener('change', loadTemplates);
 document.getElementById('directionFilter').addEventListener('change', loadTemplates);
-document.getElementById('statusFilter').addEventListener('change', loadTemplates);
+document.getElementById('statusFilter').addEventListener('change', (e) => {
+    if (e.target.type === 'checkbox') loadTemplates();
+});
 
 // Search filter (client-side only)
 document.getElementById('templateSearch').addEventListener('input', function() {
@@ -90,7 +92,6 @@ function renderAll(templates) {
     renderKpis(templates);
     renderTable(templates);
     renderRatesChart(templates);
-    renderScatterChart(templates);
 
     const empty = document.getElementById('emptyState');
     const table = document.getElementById('templatesTable');
@@ -202,7 +203,6 @@ function renderTable(templates) {
 }
 
 let ratesChartInstance = null;
-let scatterChartInstance = null;
 
 function renderRatesChart(templates) {
     if (ratesChartInstance) ratesChartInstance.destroy();
@@ -225,33 +225,3 @@ function renderRatesChart(templates) {
     });
 }
 
-function renderScatterChart(templates) {
-    if (scatterChartInstance) scatterChartInstance.destroy();
-    scatterChartInstance = new Chart(document.getElementById('scatterChart'), {
-        type: 'scatter',
-        data: {
-            datasets: [{
-                label: 'Templates',
-                data: templates.map(t => ({ x: t.total, y: t.delivery_rate, label: t.template_name })),
-                backgroundColor: '#25d366',
-                pointRadius: 6,
-                pointHoverRadius: 8
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                x: { title: { display: true, text: 'Total Messages Sent' }, beginAtZero: true },
-                y: { title: { display: true, text: 'Delivery Rate (%)' }, beginAtZero: true, max: 100 }
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `${ctx.raw.label}: ${ctx.raw.x} msgs, ${ctx.raw.y}% delivery`
-                    }
-                },
-                legend: { display: false }
-            }
-        }
-    });
-}

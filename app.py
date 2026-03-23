@@ -143,6 +143,28 @@ def get_all_subaccount_data(date_from, date_to):
     return results
 
 
+ALL_STATUSES = {"delivered", "read", "sent", "failed", "undelivered", "queued", "sending"}
+
+
+def apply_message_filters(messages, direction_filter, status_values):
+    """Filter messages by direction and status. status_values is a set of statuses."""
+    if direction_filter == "outbound":
+        messages = [m for m in messages if m.get("direction", "").startswith("outbound")]
+    elif direction_filter == "inbound":
+        messages = [m for m in messages if m.get("direction", "") == "inbound"]
+    if status_values and status_values != ALL_STATUSES:
+        messages = [m for m in messages if m.get("status") in status_values]
+    return messages
+
+
+def parse_status_filter():
+    """Parse comma-separated status filter param into a set."""
+    raw = request.args.get("status", "")
+    if not raw:
+        return ALL_STATUSES  # no filter = all
+    return set(raw.split(","))
+
+
 # ── Page Routes ──────────────────────────────────────────────
 
 
@@ -184,7 +206,7 @@ def api_dashboard():
     try:
         date_from, date_to = parse_date_params()
         direction_filter = request.args.get("direction", "")
-        status_filter = request.args.get("status", "")
+        status_values = parse_status_filter()
         all_data = get_all_subaccount_data(date_from, date_to)
 
         all_messages = []
@@ -194,34 +216,17 @@ def api_dashboard():
             if entry.get("limit_reached"):
                 any_limit_reached = True
 
-        # Apply direction filter
-        if direction_filter == "outbound":
-            all_messages = [m for m in all_messages if m.get("direction", "").startswith("outbound")]
-        elif direction_filter == "inbound":
-            all_messages = [m for m in all_messages if m.get("direction", "") == "inbound"]
-
-        # Apply status filter
-        if status_filter:
-            all_messages = [m for m in all_messages if m.get("status") == status_filter]
+        all_messages = apply_message_filters(all_messages, direction_filter, status_values)
 
         status_summary = aggregate_message_statuses(all_messages)
         daily = aggregate_by_date(all_messages)
 
         # Top sub-accounts by volume (apply filters to per-account data too)
-        if direction_filter or status_filter:
-            filtered_data = []
-            for entry in all_data:
-                msgs = entry["messages"]
-                if direction_filter == "outbound":
-                    msgs = [m for m in msgs if m.get("direction", "").startswith("outbound")]
-                elif direction_filter == "inbound":
-                    msgs = [m for m in msgs if m.get("direction", "") == "inbound"]
-                if status_filter:
-                    msgs = [m for m in msgs if m.get("status") == status_filter]
-                filtered_data.append({**entry, "messages": msgs})
-            sub_summary = build_subaccount_summary(filtered_data)
-        else:
-            sub_summary = build_subaccount_summary(all_data)
+        filtered_data = []
+        for entry in all_data:
+            msgs = apply_message_filters(entry["messages"], direction_filter, status_values)
+            filtered_data.append({**entry, "messages": msgs})
+        sub_summary = build_subaccount_summary(filtered_data)
 
         # Top templates
         template_map = cached_templates()
@@ -247,22 +252,15 @@ def api_subaccounts():
     try:
         date_from, date_to = parse_date_params()
         direction_filter = request.args.get("direction", "")
-        status_filter = request.args.get("status", "")
+        status_values = parse_status_filter()
         all_data = get_all_subaccount_data(date_from, date_to)
 
         # Apply filters to messages within each account
-        if direction_filter or status_filter:
-            filtered_data = []
-            for entry in all_data:
-                msgs = entry["messages"]
-                if direction_filter == "outbound":
-                    msgs = [m for m in msgs if m.get("direction", "").startswith("outbound")]
-                elif direction_filter == "inbound":
-                    msgs = [m for m in msgs if m.get("direction", "") == "inbound"]
-                if status_filter:
-                    msgs = [m for m in msgs if m.get("status") == status_filter]
-                filtered_data.append({**entry, "messages": msgs})
-            all_data = filtered_data
+        filtered_data = []
+        for entry in all_data:
+            msgs = apply_message_filters(entry["messages"], direction_filter, status_values)
+            filtered_data.append({**entry, "messages": msgs})
+        all_data = filtered_data
 
         summary = build_subaccount_summary(all_data)
         return jsonify(
@@ -325,7 +323,7 @@ def api_templates():
         date_from, date_to = parse_date_params()
         account_filter = request.args.get("account_sid")
         direction_filter = request.args.get("direction", "")
-        status_filter = request.args.get("status", "")
+        status_values = parse_status_filter()
 
         if account_filter:
             msg_data = cached_messages(account_filter, date_from, date_to)
@@ -336,15 +334,7 @@ def api_templates():
             for entry in all_data:
                 all_messages.extend(entry["messages"])
 
-        # Apply direction filter
-        if direction_filter == "outbound":
-            all_messages = [m for m in all_messages if m.get("direction", "").startswith("outbound")]
-        elif direction_filter == "inbound":
-            all_messages = [m for m in all_messages if m.get("direction", "") == "inbound"]
-
-        # Apply status filter
-        if status_filter:
-            all_messages = [m for m in all_messages if m.get("status") == status_filter]
+        all_messages = apply_message_filters(all_messages, direction_filter, status_values)
 
         template_map = cached_templates()
         template_stats = aggregate_by_template(all_messages, template_map)
