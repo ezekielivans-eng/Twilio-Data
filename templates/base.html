@@ -42,12 +42,12 @@
         (function() {
             const params = new URLSearchParams(window.location.search);
             const today = new Date().toISOString().split('T')[0];
-            const janFirst = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
 
             const dateFrom = document.getElementById('dateFrom');
             const dateTo = document.getElementById('dateTo');
 
-            dateFrom.value = params.get('date_from') || janFirst;
+            dateFrom.value = params.get('date_from') || thirtyDaysAgo;
             dateTo.value = params.get('date_to') || today;
 
             document.getElementById('applyDates').addEventListener('click', () => {
