@@ -47,7 +47,7 @@ def get_subaccounts():
         return []
 
 
-def get_messages(account_sid, date_from, date_to, limit=5000):
+def get_messages(account_sid, date_from, date_to, limit=1000):
     try:
         client = get_subaccount_client(account_sid)
         messages = client.messages.list(
@@ -66,18 +66,13 @@ def get_messages(account_sid, date_from, date_to, limit=5000):
         if is_whatsapp:
             whatsapp_messages.append(
                 {
-                    "sid": m.sid,
-                    "from": m.from_,
-                    "to": m.to,
                     "status": m.status,
                     "date_sent": str(m.date_sent) if m.date_sent else None,
                     "date_created": str(m.date_created),
                     "direction": m.direction,
-                    "body": m.body or "",
+                    "body": (m.body or "")[:100],
                     "error_code": m.error_code,
-                    "error_message": m.error_message,
                     "price": m.price,
-                    "price_unit": m.price_unit,
                     "content_sid": getattr(m, "content_sid", None),
                 }
             )

@@ -87,12 +87,6 @@ def cached_templates():
 
 
 def get_all_subaccount_data(date_from, date_to):
-    # Cache the entire combined result by date range to avoid re-fetching
-    cache_key = f"all_data:{date_from}:{date_to}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
-
     subaccounts = cached_subaccounts()
     # Always include the main account, but deduplicate by SID
     seen_sids = set()
@@ -107,12 +101,8 @@ def get_all_subaccount_data(date_from, date_to):
 
     def fetch_one(acct):
         sid = acct["sid"]
-        # Fetch messages and usage in parallel per account
-        with ThreadPoolExecutor(max_workers=2) as inner:
-            msg_future = inner.submit(cached_messages, sid, date_from, date_to)
-            usage_future = inner.submit(cached_usage, sid, date_from, date_to)
-            msg_data = msg_future.result(timeout=60)
-            usage = usage_future.result(timeout=60)
+        msg_data = cached_messages(sid, date_from, date_to)
+        usage = cached_usage(sid, date_from, date_to)
         return {
             "sid": sid,
             "friendly_name": acct["friendly_name"],
@@ -122,9 +112,9 @@ def get_all_subaccount_data(date_from, date_to):
         }
 
     results = []
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {executor.submit(fetch_one, acct): acct for acct in all_accounts}
-        for future in as_completed(futures, timeout=120):
+        for future in as_completed(futures, timeout=150):
             try:
                 results.append(future.result(timeout=60))
             except Exception:
@@ -139,7 +129,6 @@ def get_all_subaccount_data(date_from, date_to):
                     }
                 )
 
-    cache.set(cache_key, results)
     return results
 
 
