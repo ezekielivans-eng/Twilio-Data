@@ -417,7 +417,7 @@ def api_billing():
 @app.route("/api/accounts")
 def api_accounts():
     try:
-        return jsonify({"accounts": get_account_list()})
+        return jsonify({"accounts": get_account_list(), "main_sid": config.TWILIO_ACCOUNT_SID})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

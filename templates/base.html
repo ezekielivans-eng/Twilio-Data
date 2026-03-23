@@ -28,6 +28,7 @@
             <label>Account:
                 <select id="globalAccountFilter" class="filter-select" style="min-width:160px">
                     <option value="">All Accounts</option>
+                    <option value="__exclude_main__">All Except Main</option>
                 </select>
             </label>
             <button id="applyDates" class="btn btn-primary">Apply</button>
@@ -78,13 +79,17 @@
 
             // Populate account filter dropdown
             const globalAcctFilter = document.getElementById('globalAccountFilter');
+            let mainAccountSid = '';
             fetch('/api/accounts').then(r => r.json()).then(data => {
+                mainAccountSid = data.main_sid || '';
                 (data.accounts || []).forEach(a => {
                     const opt = document.createElement('option');
                     opt.value = a.sid;
                     opt.textContent = a.friendly_name;
                     globalAcctFilter.appendChild(opt);
                 });
+                // Default to "All Except Main"
+                globalAcctFilter.value = '__exclude_main__';
             }).catch(() => {});
 
             // Re-fetch data when account filter changes
@@ -96,6 +101,9 @@
             // Expose helper for JS files
             window.getAccountFilterParam = () => {
                 const val = globalAcctFilter.value;
+                if (val === '__exclude_main__' && mainAccountSid) {
+                    return `&exclude_accounts=${mainAccountSid}`;
+                }
                 return val ? `&account_sid=${val}` : '';
             };
             window.getDateParams = () => `date_from=${dateFrom.value}&date_to=${dateTo.value}`;
