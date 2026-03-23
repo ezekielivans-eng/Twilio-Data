@@ -65,7 +65,7 @@ def aggregate_by_date(messages):
 _MIN_BODY_TEMPLATE_MESSAGES = 10  # filter out low-volume body-hash noise
 
 
-def aggregate_by_template(messages, template_map=None):
+def aggregate_by_template(messages, template_map=None, include_unused=False):
     if template_map is None:
         template_map = {}
 
@@ -147,6 +147,28 @@ def aggregate_by_template(messages, template_map=None):
                 "error_rate": stats["error_rate"],
             }
         )
+
+    # Optionally include all known templates with 0 messages
+    if include_unused and template_map:
+        used_sids = {r["template_id"] for r in results}
+        for sid, info in template_map.items():
+            if sid not in used_sids:
+                results.append(
+                    {
+                        "template_id": sid,
+                        "template_name": info.get("friendly_name", sid),
+                        "body": info.get("body", ""),
+                        "template_type": info.get("template_type", "unknown"),
+                        "total": 0,
+                        "delivered": 0,
+                        "read": 0,
+                        "failed": 0,
+                        "undelivered": 0,
+                        "delivery_rate": 0,
+                        "read_rate": 0,
+                        "error_rate": 0,
+                    }
+                )
 
     results.sort(key=lambda x: x["total"], reverse=True)
     return results
