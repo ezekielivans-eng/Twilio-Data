@@ -9,6 +9,7 @@ from data_aggregator import (
     aggregate_billing,
     aggregate_by_date,
     aggregate_by_template,
+    aggregate_daily_spend,
     aggregate_message_statuses,
     build_subaccount_summary,
 )
@@ -329,6 +330,7 @@ def api_billing():
         billing["projected_monthly"] = round(projected_monthly, 2)
         billing["date_from"] = date_from.strftime("%Y-%m-%d")
         billing["date_to"] = date_to.strftime("%Y-%m-%d")
+        billing["daily"] = aggregate_daily_spend(all_data)
 
         return jsonify(billing)
     except Exception as e:

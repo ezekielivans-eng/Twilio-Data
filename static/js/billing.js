@@ -28,6 +28,7 @@
 
 function renderPage(data) {
     renderKPIs(data);
+    renderDailyChart(data.daily || []);
     renderPieChart(data.per_account);
     renderCategoryChart(data.per_account);
     renderTable(data.per_account);
@@ -38,6 +39,29 @@ function renderKPIs(data) {
     document.getElementById('kpiTotalSpend').textContent = `$${data.total_spend.toFixed(2)}`;
     document.getElementById('kpiDailyAvg').textContent = `$${data.daily_average.toFixed(2)}`;
     document.getElementById('kpiProjected').textContent = `$${data.projected_monthly.toFixed(2)}`;
+}
+
+function renderDailyChart(daily) {
+    new Chart(document.getElementById('dailySpendChart'), {
+        type: 'bar',
+        data: {
+            labels: daily.map(d => d.date),
+            datasets: [{
+                label: 'Daily Spend ($)',
+                data: daily.map(d => d.spend),
+                backgroundColor: '#25d366',
+                borderColor: '#128c4f',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true, title: { display: true, text: 'Spend ($)' } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
 }
 
 function renderPieChart(accounts) {

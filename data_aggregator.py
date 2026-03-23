@@ -62,21 +62,37 @@ def aggregate_by_date(messages):
     }
 
 
+_MIN_BODY_TEMPLATE_MESSAGES = 10  # filter out low-volume body-hash noise
+
+
 def aggregate_by_template(messages, template_map=None):
     if template_map is None:
         template_map = {}
+
+    # Build reverse lookup: body prefix (first 100 chars) → content SID
+    # Messages are stored with body truncated to 100 chars, so this matches exactly.
+    body_prefix_to_sid = {}
+    for sid, info in template_map.items():
+        body = (info.get("body") or "").strip()
+        if body:
+            body_prefix_to_sid[body[:100]] = sid
 
     groups = defaultdict(list)
     body_groups = defaultdict(list)
 
     for m in messages:
         content_sid = m.get("content_sid")
-        if content_sid:
+        if content_sid and content_sid in template_map:
             groups[content_sid].append(m)
         elif m.get("direction") == "outbound-api" and m.get("body"):
-            # Group outbound messages without content_sid by body text
             body_key = m["body"].strip()
-            if body_key:
+            if not body_key:
+                continue
+            # Try to match against a known template body before falling back to hash
+            matched_sid = body_prefix_to_sid.get(body_key[:100])
+            if matched_sid:
+                groups[matched_sid].append(m)
+            else:
                 body_groups[body_key].append(m)
 
     results = []
@@ -107,7 +123,10 @@ def aggregate_by_template(messages, template_map=None):
         )
 
     # Process body-text-based groups (messages sent without content_sid)
+    # Skip low-volume entries — they are noise, not meaningful templates.
     for body_text, msgs in body_groups.items():
+        if len(msgs) < _MIN_BODY_TEMPLATE_MESSAGES:
+            continue
         stats = aggregate_message_statuses(msgs)
         # Use truncated body as name
         display_name = body_text[:50] + ("..." if len(body_text) > 50 else "")
@@ -131,6 +150,24 @@ def aggregate_by_template(messages, template_map=None):
 
     results.sort(key=lambda x: x["total"], reverse=True)
     return results
+
+
+def aggregate_daily_spend(all_data):
+    """Compute approximate daily spend from per-message price fields."""
+    daily = defaultdict(float)
+    for entry in all_data:
+        for m in entry.get("messages", []):
+            date_str = m.get("date_sent") or m.get("date_created") or ""
+            if not date_str:
+                continue
+            day = date_str[:10]
+            price = m.get("price")
+            if price is not None:
+                try:
+                    daily[day] += abs(float(price))
+                except (ValueError, TypeError):
+                    pass
+    return [{"date": d, "spend": round(daily[d], 4)} for d in sorted(daily.keys())]
 
 
 def aggregate_billing(usage_records_by_account, account_names=None):
