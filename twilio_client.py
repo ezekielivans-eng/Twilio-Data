@@ -46,7 +46,7 @@ def get_subaccounts():
         return []
 
 
-def get_messages(account_sid, date_from, date_to, limit=500):
+def get_messages(account_sid, date_from, date_to, limit=5000):
     try:
         client = get_subaccount_client(account_sid)
         messages = client.messages.list(
@@ -56,7 +56,7 @@ def get_messages(account_sid, date_from, date_to, limit=500):
         )
     except Exception as e:
         logger.error("Failed to fetch messages for %s: %s", account_sid, e)
-        return []
+        return {"messages": [], "limit_reached": False}
     whatsapp_messages = []
     for m in messages:
         is_whatsapp = (m.from_ and m.from_.startswith("whatsapp:")) or (
@@ -80,7 +80,7 @@ def get_messages(account_sid, date_from, date_to, limit=500):
                     "content_sid": getattr(m, "content_sid", None),
                 }
             )
-    return whatsapp_messages
+    return {"messages": whatsapp_messages, "limit_reached": len(messages) >= limit}
 
 
 def _extract_template_body(content_obj):

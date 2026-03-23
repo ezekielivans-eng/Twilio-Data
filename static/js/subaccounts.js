@@ -1,4 +1,13 @@
 (async function() {
+    const cacheKey = `subaccounts_${getDateParams()}`;
+    const cached = sessionStorage.getItem(cacheKey);
+
+    if (cached) {
+        const data = JSON.parse(cached);
+        renderPage(data);
+        return;
+    }
+
     showLoading();
     try {
         const controller = new AbortController();
@@ -10,19 +19,24 @@
             throw new Error(err.error || `Server error (${res.status})`);
         }
         const data = await res.json();
-        renderTable(data.subaccounts);
-        renderSpendChart(data.subaccounts);
-        hideLoading();
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        renderPage(data);
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
     }
 })();
 
+function renderPage(data) {
+    renderTable(data.subaccounts);
+    renderSpendChart(data.subaccounts);
+    hideLoading();
+}
+
 function renderTable(subaccounts) {
     const tbody = document.getElementById('subaccountsBody');
     tbody.innerHTML = subaccounts.map(a => `
         <tr class="clickable" onclick="window.location='/subaccounts/${a.sid}?${getDateParams()}'">
-            <td><strong>${a.friendly_name}</strong></td>
+            <td><strong>${a.friendly_name}</strong>${a.limit_reached ? ' <span class="badge badge-warning" title="Message limit reached - totals approximate">~</span>' : ''}</td>
             <td>${a.total_messages.toLocaleString()}</td>
             <td>${a.delivered.toLocaleString()}</td>
             <td>${a.read.toLocaleString()}</td>

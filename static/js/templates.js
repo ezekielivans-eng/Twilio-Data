@@ -2,6 +2,17 @@ let allTemplates = [];
 let currentSort = { key: 'total', asc: false };
 
 (async function() {
+    const cacheKey = `templates_${getDateParams()}`;
+    const cached = sessionStorage.getItem(cacheKey);
+
+    if (cached) {
+        const data = JSON.parse(cached);
+        allTemplates = data.templates;
+        populateAccountFilter(data.subaccounts || []);
+        renderAll(allTemplates);
+        return;
+    }
+
     showLoading();
     try {
         const controller = new AbortController();
@@ -13,6 +24,7 @@ let currentSort = { key: 'total', asc: false };
             throw new Error(err.error || `Server error (${res.status})`);
         }
         const data = await res.json();
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
         allTemplates = data.templates;
         populateAccountFilter(data.subaccounts || []);
         renderAll(allTemplates);
@@ -24,10 +36,21 @@ let currentSort = { key: 'total', asc: false };
 
 // Account filter
 document.getElementById('accountFilter').addEventListener('change', async function() {
+    const accountSid = this.value;
+    const filterCacheKey = `templates_${getDateParams()}_${accountSid || 'all'}`;
+    const cached = sessionStorage.getItem(filterCacheKey);
+
+    if (cached) {
+        const data = JSON.parse(cached);
+        allTemplates = data.templates;
+        applySearch();
+        return;
+    }
+
     showLoading();
     try {
         let url = `/api/templates?${getDateParams()}`;
-        if (this.value) url += `&account_sid=${this.value}`;
+        if (accountSid) url += `&account_sid=${accountSid}`;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
         const res = await fetch(url, { signal: controller.signal });
@@ -37,6 +60,7 @@ document.getElementById('accountFilter').addEventListener('change', async functi
             throw new Error(err.error || `Server error (${res.status})`);
         }
         const data = await res.json();
+        sessionStorage.setItem(filterCacheKey, JSON.stringify(data));
         allTemplates = data.templates;
         applySearch();
         hideLoading();

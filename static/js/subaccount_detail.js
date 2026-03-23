@@ -1,4 +1,13 @@
 (async function() {
+    const cacheKey = `subaccount_detail_${ACCOUNT_SID}_${getDateParams()}`;
+    const cached = sessionStorage.getItem(cacheKey);
+
+    if (cached) {
+        const data = JSON.parse(cached);
+        renderPage(data);
+        return;
+    }
+
     showLoading();
     try {
         const controller = new AbortController();
@@ -10,19 +19,28 @@
             throw new Error(err.error || `Server error (${res.status})`);
         }
         const data = await res.json();
-
-        document.getElementById('accountTitle').textContent = `Sub-Account: ${data.account_name}`;
-
-        renderKPIs(data.status_summary);
-        renderStatusChart(data.status_summary);
-        renderTimelineChart(data.daily);
-        renderTemplateChart(data.templates);
-        renderTemplatesTable(data.templates);
-        hideLoading();
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        renderPage(data);
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
     }
 })();
+
+function renderPage(data) {
+    document.getElementById('accountTitle').textContent = `Sub-Account: ${data.account_name}`;
+    renderKPIs(data.status_summary);
+    renderStatusChart(data.status_summary);
+    renderTimelineChart(data.daily);
+    renderTemplateChart(data.templates);
+    renderTemplatesTable(data.templates);
+    if (data.limit_reached) {
+        const warn = document.createElement('div');
+        warn.className = 'limit-warning';
+        warn.innerHTML = 'Message fetch limit reached. Totals may be approximate. Try a shorter date range for exact numbers.';
+        document.querySelector('.container').insertBefore(warn, document.getElementById('loading').nextSibling);
+    }
+    hideLoading();
+}
 
 function renderKPIs(s) {
     document.getElementById('kpiTotal').textContent = s.total.toLocaleString();

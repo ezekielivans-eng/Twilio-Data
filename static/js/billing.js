@@ -1,4 +1,13 @@
 (async function() {
+    const cacheKey = `billing_${getDateParams()}`;
+    const cached = sessionStorage.getItem(cacheKey);
+
+    if (cached) {
+        const data = JSON.parse(cached);
+        renderPage(data);
+        return;
+    }
+
     showLoading();
     try {
         const controller = new AbortController();
@@ -10,15 +19,20 @@
             throw new Error(err.error || `Server error (${res.status})`);
         }
         const data = await res.json();
-        renderKPIs(data);
-        renderPieChart(data.per_account);
-        renderCategoryChart(data.per_account);
-        renderTable(data.per_account);
-        hideLoading();
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        renderPage(data);
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
     }
 })();
+
+function renderPage(data) {
+    renderKPIs(data);
+    renderPieChart(data.per_account);
+    renderCategoryChart(data.per_account);
+    renderTable(data.per_account);
+    hideLoading();
+}
 
 function renderKPIs(data) {
     document.getElementById('kpiTotalSpend').textContent = `$${data.total_spend.toFixed(2)}`;
@@ -46,7 +60,6 @@ function renderPieChart(accounts) {
 }
 
 function renderCategoryChart(accounts) {
-    // Aggregate all categories across accounts
     const allCats = {};
     accounts.forEach(a => {
         Object.entries(a.categories).forEach(([cat, amount]) => {

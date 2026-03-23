@@ -52,7 +52,9 @@ def cached_messages(account_sid, date_from, date_to):
     key = f"messages:{account_sid}:{date_from}:{date_to}"
     data = cache.get(key)
     if data is None:
-        data = get_messages(account_sid, date_from, date_to)
+        result = get_messages(account_sid, date_from, date_to)
+        # get_messages now returns {"messages": [...], "limit_reached": bool}
+        data = result
         cache.set(key, data)
     return data
 
@@ -84,12 +86,13 @@ def get_all_subaccount_data(date_from, date_to):
 
     def fetch_one(acct):
         sid = acct["sid"]
-        messages = cached_messages(sid, date_from, date_to)
+        msg_data = cached_messages(sid, date_from, date_to)
         usage = cached_usage(sid, date_from, date_to)
         return {
             "sid": sid,
             "friendly_name": acct["friendly_name"],
-            "messages": messages,
+            "messages": msg_data["messages"],
+            "limit_reached": msg_data["limit_reached"],
             "usage": usage,
         }
 
@@ -155,8 +158,11 @@ def api_dashboard():
         all_data = get_all_subaccount_data(date_from, date_to)
 
         all_messages = []
+        any_limit_reached = False
         for entry in all_data:
             all_messages.extend(entry["messages"])
+            if entry.get("limit_reached"):
+                any_limit_reached = True
 
         status_summary = aggregate_message_statuses(all_messages)
         daily = aggregate_by_date(all_messages)
@@ -176,6 +182,7 @@ def api_dashboard():
                 "top_templates": template_stats,
                 "date_from": date_from.strftime("%Y-%m-%d"),
                 "date_to": date_to.strftime("%Y-%m-%d"),
+                "limit_reached": any_limit_reached,
             }
         )
     except Exception as e:
@@ -203,7 +210,9 @@ def api_subaccounts():
 def api_subaccount_detail(sid):
     try:
         date_from, date_to = parse_date_params()
-        messages = cached_messages(sid, date_from, date_to)
+        msg_data = cached_messages(sid, date_from, date_to)
+        messages = msg_data["messages"]
+        limit_reached = msg_data["limit_reached"]
         usage = cached_usage(sid, date_from, date_to)
 
         status_summary = aggregate_message_statuses(messages)
@@ -233,6 +242,7 @@ def api_subaccount_detail(sid):
                 "usage": usage,
                 "date_from": date_from.strftime("%Y-%m-%d"),
                 "date_to": date_to.strftime("%Y-%m-%d"),
+                "limit_reached": limit_reached,
             }
         )
     except Exception as e:
@@ -246,7 +256,8 @@ def api_templates():
         account_filter = request.args.get("account_sid")
 
         if account_filter:
-            all_messages = cached_messages(account_filter, date_from, date_to)
+            msg_data = cached_messages(account_filter, date_from, date_to)
+            all_messages = msg_data["messages"]
         else:
             all_data = get_all_subaccount_data(date_from, date_to)
             all_messages = []

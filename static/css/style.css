@@ -389,3 +389,14 @@ tbody tr.clickable:hover { background: #e8f5e9; }
     .filter-select, .filter-input { width: 100%; }
     .template-body-stats { flex-direction: column; }
 }
+
+/* Limit warning banner */
+.limit-warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    color: #856404;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}

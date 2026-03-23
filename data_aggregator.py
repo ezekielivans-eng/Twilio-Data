@@ -153,6 +153,7 @@ def build_subaccount_summary(subaccounts_data):
                 "read_rate": stats["read_rate"],
                 "error_rate": stats["error_rate"],
                 "spend": round(spend, 4),
+                "limit_reached": entry.get("limit_reached", False),
             }
         )
     summary.sort(key=lambda x: x["total_messages"], reverse=True)

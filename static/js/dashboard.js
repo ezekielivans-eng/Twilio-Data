@@ -1,4 +1,13 @@
 (async function() {
+    const cacheKey = `dashboard_${getDateParams()}`;
+    const cached = sessionStorage.getItem(cacheKey);
+
+    if (cached) {
+        const data = JSON.parse(cached);
+        renderPage(data);
+        return;
+    }
+
     showLoading();
     try {
         const controller = new AbortController();
@@ -10,16 +19,31 @@
             throw new Error(err.error || `Server error (${res.status})`);
         }
         const data = await res.json();
-        renderKPIs(data.status_summary);
-        renderStatusChart(data.status_summary);
-        renderTimelineChart(data.daily);
-        renderSubaccountsChart(data.top_subaccounts);
-        renderTemplatesChart(data.top_templates);
-        hideLoading();
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        renderPage(data);
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
     }
 })();
+
+function renderPage(data) {
+    renderKPIs(data.status_summary);
+    renderStatusChart(data.status_summary);
+    renderTimelineChart(data.daily);
+    renderSubaccountsChart(data.top_subaccounts);
+    renderTemplatesChart(data.top_templates);
+    if (data.limit_reached) {
+        showLimitWarning();
+    }
+    hideLoading();
+}
+
+function showLimitWarning() {
+    const warn = document.createElement('div');
+    warn.className = 'limit-warning';
+    warn.innerHTML = 'Some accounts hit the message fetch limit. Totals may be approximate. Try a shorter date range for exact numbers.';
+    document.querySelector('.container').insertBefore(warn, document.getElementById('loading').nextSibling);
+}
 
 function renderKPIs(s) {
     document.getElementById('kpiTotal').textContent = s.total.toLocaleString();
