@@ -354,7 +354,7 @@ def api_templates():
         all_messages = apply_message_filters(all_messages, direction_filter, status_values)
 
         template_map = cached_templates()
-        template_stats = aggregate_by_template(all_messages, template_map, include_unused=True)
+        template_stats = aggregate_by_template(all_messages, template_map)
 
         # Count messages with/without content_sid for diagnostics
         with_sid = sum(1 for m in all_messages if m.get("content_sid"))
