@@ -80,7 +80,7 @@
             // Populate account filter dropdown
             const globalAcctFilter = document.getElementById('globalAccountFilter');
             let mainAccountSid = '';
-            fetch('/api/accounts').then(r => r.json()).then(data => {
+            const accountsReady = fetch('/api/accounts').then(r => r.json()).then(data => {
                 mainAccountSid = data.main_sid || '';
                 (data.accounts || []).forEach(a => {
                     const opt = document.createElement('option');
@@ -91,6 +91,9 @@
                 // Default to "All Except Main"
                 globalAcctFilter.value = '__exclude_main__';
             }).catch(() => {});
+
+            // Pages can await this before their initial load
+            window.accountsReady = accountsReady;
 
             // Re-fetch data when account filter changes
             globalAcctFilter.addEventListener('change', () => {

@@ -49,8 +49,8 @@ document.getElementById('statusFilter')?.addEventListener('change', (e) => {
     if (e.target.type === 'checkbox') loadDashboard();
 });
 
-// Initial load
-loadDashboard();
+// Initial load — wait for account filter to be ready
+window.accountsReady.then(() => loadDashboard());
 
 function renderPage(data) {
     renderKPIs(data.status_summary);

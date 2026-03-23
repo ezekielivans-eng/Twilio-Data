@@ -46,8 +46,8 @@ document.getElementById('statusFilter')?.addEventListener('change', (e) => {
     if (e.target.type === 'checkbox') loadSubaccounts();
 });
 
-// Initial load
-loadSubaccounts();
+// Initial load — wait for account filter to be ready
+window.accountsReady.then(() => loadSubaccounts());
 
 function renderPage(data) {
     renderTable(data.subaccounts);

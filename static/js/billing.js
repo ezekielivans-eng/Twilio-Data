@@ -28,7 +28,7 @@ async function loadBilling() {
 }
 
 window._onAccountFilterChange = loadBilling;
-loadBilling();
+window.accountsReady.then(() => loadBilling());
 
 function renderPage(data) {
     renderKPIs(data);

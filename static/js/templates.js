@@ -54,8 +54,8 @@ document.getElementById('statusFilter').addEventListener('change', (e) => {
 document.getElementById('typeFilter').addEventListener('change', applyClientFilters);
 document.getElementById('templateSearch').addEventListener('input', applyClientFilters);
 
-// Initial load
-loadTemplates();
+// Initial load — wait for account filter to be ready
+window.accountsReady.then(() => loadTemplates());
 
 function applyClientFilters() {
     let filtered = allTemplates;
