@@ -2,7 +2,7 @@
     showLoading();
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000);
+        const timeoutId = setTimeout(() => controller.abort(), 90000);
         const res = await fetch(`/api/dashboard?${getDateParams()}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) {

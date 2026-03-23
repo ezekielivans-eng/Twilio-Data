@@ -94,11 +94,11 @@ def get_all_subaccount_data(date_from, date_to):
         }
 
     results = []
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
         futures = {executor.submit(fetch_one, acct): acct for acct in all_accounts}
-        for future in as_completed(futures):
+        for future in as_completed(futures, timeout=90):
             try:
-                results.append(future.result())
+                results.append(future.result(timeout=60))
             except Exception:
                 acct = futures[future]
                 results.append(

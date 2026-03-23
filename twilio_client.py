@@ -7,7 +7,7 @@ import config
 
 logger = logging.getLogger(__name__)
 
-TWILIO_TIMEOUT = 60  # seconds
+TWILIO_TIMEOUT = 30  # seconds
 
 
 def get_client():
@@ -46,7 +46,7 @@ def get_subaccounts():
         return []
 
 
-def get_messages(account_sid, date_from, date_to, limit=2000):
+def get_messages(account_sid, date_from, date_to, limit=500):
     try:
         client = get_subaccount_client(account_sid)
         messages = client.messages.list(
