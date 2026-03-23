@@ -96,11 +96,11 @@ def _extract_template_body(content_obj):
     return "", "unknown"
 
 
-def get_content_templates(account_sid=None):
+def _fetch_templates_for_client(client):
+    """Fetch content templates using a given Twilio client."""
+    result = {}
     try:
-        client = get_client()
         contents = client.content.v1.contents.list(limit=200)
-        result = {}
         for c in contents:
             body, template_type = _extract_template_body(c)
             result[c.sid] = {
@@ -110,9 +110,27 @@ def get_content_templates(account_sid=None):
                 "body": body,
                 "template_type": template_type,
             }
-        return result
-    except Exception:
-        return {}
+    except Exception as e:
+        logger.debug("Failed to fetch templates: %s", e)
+    return result
+
+
+def get_content_templates(account_sid=None):
+    """Fetch content templates from the main account and all sub-accounts."""
+    result = {}
+    # Main account templates
+    result.update(_fetch_templates_for_client(get_client()))
+
+    # Sub-account templates
+    try:
+        subaccounts = get_subaccounts()
+        for acct in subaccounts:
+            sub_client = get_subaccount_client(acct["sid"])
+            result.update(_fetch_templates_for_client(sub_client))
+    except Exception as e:
+        logger.debug("Failed to fetch sub-account templates: %s", e)
+
+    return result
 
 
 def get_usage_records(account_sid, date_from, date_to):

@@ -267,6 +267,10 @@ def api_templates():
         template_map = cached_templates()
         template_stats = aggregate_by_template(all_messages, template_map)
 
+        # Count messages with/without content_sid for diagnostics
+        with_sid = sum(1 for m in all_messages if m.get("content_sid"))
+        outbound = sum(1 for m in all_messages if m.get("direction") == "outbound-api")
+
         # Also return list of sub-accounts for the filter dropdown
         subaccounts = cached_subaccounts()
         account_list = [
@@ -279,6 +283,12 @@ def api_templates():
                 "subaccounts": account_list,
                 "date_from": date_from.strftime("%Y-%m-%d"),
                 "date_to": date_to.strftime("%Y-%m-%d"),
+                "debug": {
+                    "total_messages": len(all_messages),
+                    "outbound_messages": outbound,
+                    "with_content_sid": with_sid,
+                    "template_map_size": len(template_map),
+                },
             }
         )
     except Exception as e:

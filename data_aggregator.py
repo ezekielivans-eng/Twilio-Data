@@ -67,13 +67,21 @@ def aggregate_by_template(messages, template_map=None):
         template_map = {}
 
     groups = defaultdict(list)
+    body_groups = defaultdict(list)
+
     for m in messages:
         content_sid = m.get("content_sid")
         if content_sid:
             groups[content_sid].append(m)
-        # Skip messages without content_sid (customer replies, button clicks, free-form text)
+        elif m.get("direction") == "outbound-api" and m.get("body"):
+            # Group outbound messages without content_sid by body text
+            body_key = m["body"].strip()
+            if body_key:
+                body_groups[body_key].append(m)
 
     results = []
+
+    # Process content_sid-based templates
     for key, msgs in groups.items():
         stats = aggregate_message_statuses(msgs)
         template_info = template_map.get(key, {})
@@ -87,6 +95,31 @@ def aggregate_by_template(messages, template_map=None):
                 "template_name": name,
                 "body": body,
                 "template_type": template_type,
+                "total": stats["total"],
+                "delivered": stats["delivered"],
+                "read": stats["read"],
+                "failed": stats["failed"],
+                "undelivered": stats["undelivered"],
+                "delivery_rate": stats["delivery_rate"],
+                "read_rate": stats["read_rate"],
+                "error_rate": stats["error_rate"],
+            }
+        )
+
+    # Process body-text-based groups (messages sent without content_sid)
+    for body_text, msgs in body_groups.items():
+        if len(msgs) < 2:
+            continue  # Only show repeated messages (likely templates)
+        stats = aggregate_message_statuses(msgs)
+        # Use truncated body as name
+        display_name = body_text[:50] + ("..." if len(body_text) > 50 else "")
+
+        results.append(
+            {
+                "template_id": f"body:{hash(body_text) & 0xFFFFFFFF:08x}",
+                "template_name": display_name,
+                "body": body_text,
+                "template_type": "text (no content_sid)",
                 "total": stats["total"],
                 "delivered": stats["delivered"],
                 "read": stats["read"],
