@@ -19,7 +19,7 @@
             throw new Error(err.error || `Server error (${res.status})`);
         }
         const data = await res.json();
-        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        safeCacheSet(cacheKey, data);
         renderPage(data);
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
@@ -111,7 +111,7 @@ function renderTemplateChart(templates) {
 function renderTemplatesTable(templates) {
     document.getElementById('templatesBody').innerHTML = templates.map(t => `
         <tr>
-            <td>${t.template_name}</td>
+            <td>${escapeHtml(t.template_name)}</td>
             <td>${t.total.toLocaleString()}</td>
             <td>${t.delivered.toLocaleString()}</td>
             <td>${t.read.toLocaleString()}</td>

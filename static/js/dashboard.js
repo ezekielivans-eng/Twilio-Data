@@ -19,7 +19,7 @@
             throw new Error(err.error || `Server error (${res.status})`);
         }
         const data = await res.json();
-        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        safeCacheSet(cacheKey, data);
         renderPage(data);
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);

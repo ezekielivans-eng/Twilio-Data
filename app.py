@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
 from flask import Flask, jsonify, render_template, request
+from flask_compress import Compress
 
 import config
 from cache import TTLCache
@@ -22,8 +23,12 @@ from twilio_client import (
 
 app = Flask(__name__)
 app.secret_key = config.FLASK_SECRET_KEY
+Compress(app)
 
 cache = TTLCache(ttl_seconds=config.CACHE_TTL_SECONDS)
+
+
+MAX_DATE_RANGE_DAYS = 30
 
 
 def parse_date_params():
@@ -37,6 +42,9 @@ def parse_date_params():
         date_from = datetime.strptime(date_from, "%Y-%m-%d")
     else:
         date_from = date_to - timedelta(days=config.DATE_RANGE_DAYS)
+    # Cap to maximum 30 days
+    if (date_to - date_from).days > MAX_DATE_RANGE_DAYS:
+        date_from = date_to - timedelta(days=MAX_DATE_RANGE_DAYS)
     return date_from, date_to
 
 
@@ -104,7 +112,7 @@ def get_all_subaccount_data(date_from, date_to):
         }
 
     results = []
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {executor.submit(fetch_one, acct): acct for acct in all_accounts}
         for future in as_completed(futures, timeout=90):
             try:

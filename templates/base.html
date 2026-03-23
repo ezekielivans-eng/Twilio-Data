@@ -42,15 +42,22 @@
         (function() {
             const params = new URLSearchParams(window.location.search);
             const today = new Date().toISOString().split('T')[0];
-            const thirtyDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+            const defaultFrom = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
 
             const dateFrom = document.getElementById('dateFrom');
             const dateTo = document.getElementById('dateTo');
 
-            dateFrom.value = params.get('date_from') || thirtyDaysAgo;
+            dateFrom.value = params.get('date_from') || defaultFrom;
             dateTo.value = params.get('date_to') || today;
 
             document.getElementById('applyDates').addEventListener('click', () => {
+                const from = new Date(dateFrom.value);
+                const to = new Date(dateTo.value);
+                const diffDays = Math.round((to - from) / 86400000);
+                if (diffDays < 1 || diffDays > 30) {
+                    alert('Date range must be between 1 and 30 days.');
+                    return;
+                }
                 sessionStorage.clear();
                 const url = new URL(window.location);
                 url.searchParams.set('date_from', dateFrom.value);
@@ -73,6 +80,14 @@
                 el.innerHTML = '<p style="color:#dc3545;font-weight:bold;margin-bottom:1rem;">Error: ' + message + '</p>' +
                     '<button class="btn btn-primary" onclick="window.location.reload()">Retry</button>';
                 el.style.display = 'flex';
+            };
+            window.safeCacheSet = (key, data) => {
+                try { sessionStorage.setItem(key, JSON.stringify(data)); } catch(e) { /* quota exceeded */ }
+            };
+            window.escapeHtml = (str) => {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
             };
         })();
     </script>

@@ -19,7 +19,7 @@
             throw new Error(err.error || `Server error (${res.status})`);
         }
         const data = await res.json();
-        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        safeCacheSet(cacheKey, data);
         renderPage(data);
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
@@ -115,10 +115,10 @@ function renderCategoryChart(accounts) {
 function renderTable(accounts) {
     document.getElementById('billingBody').innerHTML = accounts.map(a => `
         <tr>
-            <td><strong>${a.account_name}</strong></td>
-            <td style="font-size:0.8rem;color:#888">${a.account_sid}</td>
+            <td><strong>${escapeHtml(a.account_name)}</strong></td>
+            <td style="font-size:0.8rem;color:#888">${escapeHtml(a.account_sid)}</td>
             <td><strong>$${a.total_spend.toFixed(2)}</strong></td>
-            <td style="font-size:0.8rem">${Object.entries(a.categories).map(([c,v]) => `${c}: $${v.toFixed(2)}`).join('<br>')}</td>
+            <td style="font-size:0.8rem">${Object.entries(a.categories).map(([c,v]) => `${escapeHtml(c)}: $${v.toFixed(2)}`).join('<br>')}</td>
         </tr>
     `).join('');
 }

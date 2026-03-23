@@ -24,7 +24,7 @@ let currentSort = { key: 'total', asc: false };
             throw new Error(err.error || `Server error (${res.status})`);
         }
         const data = await res.json();
-        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        safeCacheSet(cacheKey, data);
         allTemplates = data.templates;
         populateAccountFilter(data.subaccounts || []);
         renderAll(allTemplates);
@@ -60,7 +60,7 @@ document.getElementById('accountFilter').addEventListener('change', async functi
             throw new Error(err.error || `Server error (${res.status})`);
         }
         const data = await res.json();
-        sessionStorage.setItem(filterCacheKey, JSON.stringify(data));
+        safeCacheSet(filterCacheKey, data);
         allTemplates = data.templates;
         applySearch();
         hideLoading();
@@ -264,8 +264,4 @@ function renderScatterChart(templates) {
     });
 }
 
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
+// escapeHtml is defined globally in base.html

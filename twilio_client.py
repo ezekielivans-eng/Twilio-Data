@@ -130,7 +130,7 @@ def get_content_templates(account_sid=None):
             sub_client = get_subaccount_client(acct["sid"])
             return _fetch_templates_for_client(sub_client)
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=5) as executor:
             futures = {
                 executor.submit(fetch_sub_templates, acct): acct
                 for acct in subaccounts

@@ -19,7 +19,7 @@
             throw new Error(err.error || `Server error (${res.status})`);
         }
         const data = await res.json();
-        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        safeCacheSet(cacheKey, data);
         renderPage(data);
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
@@ -35,8 +35,8 @@ function renderPage(data) {
 function renderTable(subaccounts) {
     const tbody = document.getElementById('subaccountsBody');
     tbody.innerHTML = subaccounts.map(a => `
-        <tr class="clickable" onclick="window.location='/subaccounts/${a.sid}?${getDateParams()}'">
-            <td><strong>${a.friendly_name}</strong>${a.limit_reached ? ' <span class="badge badge-warning" title="Message limit reached - totals approximate">~</span>' : ''}</td>
+        <tr class="clickable" onclick="window.location='/subaccounts/${encodeURIComponent(a.sid)}?${getDateParams()}'">
+            <td><strong>${escapeHtml(a.friendly_name)}</strong>${a.limit_reached ? ' <span class="badge badge-warning" title="Message limit reached - totals approximate">~</span>' : ''}</td>
             <td>${a.total_messages.toLocaleString()}</td>
             <td>${a.delivered.toLocaleString()}</td>
             <td>${a.read.toLocaleString()}</td>
