@@ -3,11 +3,13 @@ let spendChartInstance = null;
 function getSubFilterParams() {
     const dir = document.getElementById('directionFilter')?.value || '';
     const status = getStatusFilterValues();
-    let params = getDateParams();
+    let params = getDateParams() + getAccountFilterParam();
     if (dir) params += `&direction=${dir}`;
     if (status) params += `&status=${encodeURIComponent(status)}`;
     return params;
 }
+
+window._onAccountFilterChange = loadSubaccounts;
 
 async function loadSubaccounts() {
     const filterParams = getSubFilterParams();

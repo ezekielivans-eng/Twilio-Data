@@ -154,6 +154,30 @@ def parse_status_filter():
     return set(raw.split(","))
 
 
+def get_account_list():
+    """Return deduplicated account list for filter dropdowns."""
+    subaccounts = cached_subaccounts()
+    account_list = [
+        {"sid": config.TWILIO_ACCOUNT_SID, "friendly_name": "Main Account"}
+    ]
+    seen = {config.TWILIO_ACCOUNT_SID}
+    for a in subaccounts:
+        if a["sid"] not in seen:
+            account_list.append({"sid": a["sid"], "friendly_name": a["friendly_name"]})
+            seen.add(a["sid"])
+    return account_list
+
+
+def filter_data_by_accounts(all_data, account_filter, exclude_accounts):
+    """Filter all_data by account_sid or exclude_accounts."""
+    if account_filter:
+        all_data = [e for e in all_data if e["sid"] == account_filter]
+    elif exclude_accounts:
+        exclude_set = set(exclude_accounts.split(","))
+        all_data = [e for e in all_data if e["sid"] not in exclude_set]
+    return all_data
+
+
 # ── Page Routes ──────────────────────────────────────────────
 
 
@@ -196,7 +220,10 @@ def api_dashboard():
         date_from, date_to = parse_date_params()
         direction_filter = request.args.get("direction", "")
         status_values = parse_status_filter()
+        account_filter = request.args.get("account_sid", "")
+        exclude_accounts = request.args.get("exclude_accounts", "")
         all_data = get_all_subaccount_data(date_from, date_to)
+        all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
 
         all_messages = []
         any_limit_reached = False
@@ -242,7 +269,10 @@ def api_subaccounts():
         date_from, date_to = parse_date_params()
         direction_filter = request.args.get("direction", "")
         status_values = parse_status_filter()
+        account_filter = request.args.get("account_sid", "")
+        exclude_accounts = request.args.get("exclude_accounts", "")
         all_data = get_all_subaccount_data(date_from, date_to)
+        all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
 
         # Apply filters to messages within each account
         filtered_data = []
@@ -310,18 +340,16 @@ def api_subaccount_detail(sid):
 def api_templates():
     try:
         date_from, date_to = parse_date_params()
-        account_filter = request.args.get("account_sid")
+        account_filter = request.args.get("account_sid", "")
+        exclude_accounts = request.args.get("exclude_accounts", "")
         direction_filter = request.args.get("direction", "")
         status_values = parse_status_filter()
 
-        if account_filter:
-            msg_data = cached_messages(account_filter, date_from, date_to)
-            all_messages = msg_data["messages"]
-        else:
-            all_data = get_all_subaccount_data(date_from, date_to)
-            all_messages = []
-            for entry in all_data:
-                all_messages.extend(entry["messages"])
+        all_data = get_all_subaccount_data(date_from, date_to)
+        all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
+        all_messages = []
+        for entry in all_data:
+            all_messages.extend(entry["messages"])
 
         all_messages = apply_message_filters(all_messages, direction_filter, status_values)
 
@@ -332,16 +360,7 @@ def api_templates():
         with_sid = sum(1 for m in all_messages if m.get("content_sid"))
         outbound_count = sum(1 for m in all_messages if m.get("direction", "").startswith("outbound"))
 
-        # Also return list of sub-accounts for the filter dropdown (deduplicated)
-        subaccounts = cached_subaccounts()
-        account_list = [
-            {"sid": config.TWILIO_ACCOUNT_SID, "friendly_name": "Main Account"}
-        ]
-        seen = {config.TWILIO_ACCOUNT_SID}
-        for a in subaccounts:
-            if a["sid"] not in seen:
-                account_list.append({"sid": a["sid"], "friendly_name": a["friendly_name"]})
-                seen.add(a["sid"])
+        account_list = get_account_list()
 
         return jsonify(
             {
@@ -366,7 +385,10 @@ def api_templates():
 def api_billing():
     try:
         date_from, date_to = parse_date_params()
+        account_filter = request.args.get("account_sid", "")
+        exclude_accounts = request.args.get("exclude_accounts", "")
         all_data = get_all_subaccount_data(date_from, date_to)
+        all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
 
         usage_by_account = {}
         account_names = {}
@@ -388,6 +410,14 @@ def api_billing():
         billing["daily"] = aggregate_daily_spend(all_data)
 
         return jsonify(billing)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/accounts")
+def api_accounts():
+    try:
+        return jsonify({"accounts": get_account_list()})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

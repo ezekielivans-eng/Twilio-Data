@@ -25,6 +25,11 @@
         <div class="date-picker">
             <label>From: <input type="date" id="dateFrom"></label>
             <label>To: <input type="date" id="dateTo"></label>
+            <label>Account:
+                <select id="globalAccountFilter" class="filter-select" style="min-width:160px">
+                    <option value="">All Accounts</option>
+                </select>
+            </label>
             <button id="applyDates" class="btn btn-primary">Apply</button>
             <button id="refreshCache" class="btn btn-secondary">Refresh Data</button>
         </div>
@@ -71,7 +76,28 @@
                 window.location.reload();
             });
 
+            // Populate account filter dropdown
+            const globalAcctFilter = document.getElementById('globalAccountFilter');
+            fetch('/api/accounts').then(r => r.json()).then(data => {
+                (data.accounts || []).forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.sid;
+                    opt.textContent = a.friendly_name;
+                    globalAcctFilter.appendChild(opt);
+                });
+            }).catch(() => {});
+
+            // Re-fetch data when account filter changes
+            globalAcctFilter.addEventListener('change', () => {
+                sessionStorage.clear();
+                if (window._onAccountFilterChange) window._onAccountFilterChange();
+            });
+
             // Expose helper for JS files
+            window.getAccountFilterParam = () => {
+                const val = globalAcctFilter.value;
+                return val ? `&account_sid=${val}` : '';
+            };
             window.getDateParams = () => `date_from=${dateFrom.value}&date_to=${dateTo.value}`;
             window.showLoading = () => document.getElementById('loading').style.display = 'flex';
             window.hideLoading = () => document.getElementById('loading').style.display = 'none';

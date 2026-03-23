@@ -1,5 +1,6 @@
-(async function() {
-    const cacheKey = `billing_${getDateParams()}`;
+async function loadBilling() {
+    const filterParams = getDateParams() + getAccountFilterParam();
+    const cacheKey = `billing_${filterParams}`;
     const cached = sessionStorage.getItem(cacheKey);
 
     if (cached) {
@@ -12,7 +13,7 @@
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
-        const res = await fetch(`/api/billing?${getDateParams()}`, { signal: controller.signal });
+        const res = await fetch(`/api/billing?${filterParams}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -24,7 +25,10 @@
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
     }
-})();
+}
+
+window._onAccountFilterChange = loadBilling;
+loadBilling();
 
 function renderPage(data) {
     renderKPIs(data);

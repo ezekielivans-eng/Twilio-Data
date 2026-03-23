@@ -1,17 +1,16 @@
 let allTemplates = [];
 let currentSort = { key: 'total', asc: false };
-let accountListPopulated = false;
 
 function getTemplateFilterParams() {
-    const accountSid = document.getElementById('accountFilter')?.value || '';
     const dir = document.getElementById('directionFilter')?.value || '';
     const status = getStatusFilterValues();
-    let params = getDateParams();
-    if (accountSid) params += `&account_sid=${accountSid}`;
+    let params = getDateParams() + getAccountFilterParam();
     if (dir) params += `&direction=${dir}`;
     if (status) params += `&status=${encodeURIComponent(status)}`;
     return params;
 }
+
+window._onAccountFilterChange = loadTemplates;
 
 async function loadTemplates() {
     const filterParams = getTemplateFilterParams();
@@ -21,10 +20,6 @@ async function loadTemplates() {
     if (cached) {
         const data = JSON.parse(cached);
         allTemplates = data.templates;
-        if (!accountListPopulated) {
-            populateAccountFilter(data.subaccounts || []);
-            accountListPopulated = true;
-        }
         applyClientFilters();
         return;
     }
@@ -42,10 +37,6 @@ async function loadTemplates() {
         const data = await res.json();
         safeCacheSet(cacheKey, data);
         allTemplates = data.templates;
-        if (!accountListPopulated) {
-            populateAccountFilter(data.subaccounts || []);
-            accountListPopulated = true;
-        }
         applyClientFilters();
         hideLoading();
     } catch(e) {
@@ -54,7 +45,6 @@ async function loadTemplates() {
 }
 
 // Filter change handlers - all trigger a fresh load
-document.getElementById('accountFilter').addEventListener('change', loadTemplates);
 document.getElementById('directionFilter').addEventListener('change', loadTemplates);
 document.getElementById('statusFilter').addEventListener('change', (e) => {
     if (e.target.type === 'checkbox') loadTemplates();
@@ -87,16 +77,6 @@ function applyClientFilters() {
     }
 
     renderAll(filtered);
-}
-
-function populateAccountFilter(accounts) {
-    const sel = document.getElementById('accountFilter');
-    accounts.forEach(a => {
-        const opt = document.createElement('option');
-        opt.value = a.sid;
-        opt.textContent = a.friendly_name;
-        sel.appendChild(opt);
-    });
 }
 
 function renderAll(templates) {

@@ -6,11 +6,13 @@ let templatesChartInstance = null;
 function getFilterParams() {
     const dir = document.getElementById('directionFilter')?.value || '';
     const status = getStatusFilterValues();
-    let params = getDateParams();
+    let params = getDateParams() + getAccountFilterParam();
     if (dir) params += `&direction=${dir}`;
     if (status) params += `&status=${encodeURIComponent(status)}`;
     return params;
 }
+
+window._onAccountFilterChange = loadDashboard;
 
 async function loadDashboard() {
     const filterParams = getFilterParams();
