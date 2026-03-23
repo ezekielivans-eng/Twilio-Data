@@ -31,6 +31,14 @@
         </div>
     </div>
     <div class="filter-group">
+        <label for="typeFilter">Type:</label>
+        <select id="typeFilter" class="filter-select">
+            <option value="">All Types</option>
+            <option value="content_sid" selected>Content Templates Only</option>
+            <option value="no_content_sid">Text (No Content_sid) Only</option>
+        </select>
+    </div>
+    <div class="filter-group">
         <label for="templateSearch">Search:</label>
         <input type="text" id="templateSearch" class="filter-input" placeholder="Search templates...">
     </div>

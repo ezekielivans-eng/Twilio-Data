@@ -25,7 +25,7 @@ async function loadTemplates() {
             populateAccountFilter(data.subaccounts || []);
             accountListPopulated = true;
         }
-        renderAll(allTemplates);
+        applyClientFilters();
         return;
     }
 
@@ -46,7 +46,7 @@ async function loadTemplates() {
             populateAccountFilter(data.subaccounts || []);
             accountListPopulated = true;
         }
-        renderAll(allTemplates);
+        applyClientFilters();
         hideLoading();
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
@@ -60,21 +60,32 @@ document.getElementById('statusFilter').addEventListener('change', (e) => {
     if (e.target.type === 'checkbox') loadTemplates();
 });
 
-// Search filter (client-side only)
-document.getElementById('templateSearch').addEventListener('input', function() {
-    applySearch();
-});
+// Client-side filters (type + search) — no server call needed
+document.getElementById('typeFilter').addEventListener('change', applyClientFilters);
+document.getElementById('templateSearch').addEventListener('input', applyClientFilters);
 
 // Initial load
 loadTemplates();
 
-function applySearch() {
+function applyClientFilters() {
+    let filtered = allTemplates;
+
+    // Type filter
+    const typeVal = document.getElementById('typeFilter')?.value || '';
+    if (typeVal === 'content_sid') {
+        filtered = filtered.filter(t => !t.template_type.includes('no content_sid'));
+    } else if (typeVal === 'no_content_sid') {
+        filtered = filtered.filter(t => t.template_type.includes('no content_sid'));
+    }
+
+    // Search filter
     const query = document.getElementById('templateSearch').value.toLowerCase();
-    const filtered = query
-        ? allTemplates.filter(t =>
+    if (query) {
+        filtered = filtered.filter(t =>
             t.template_name.toLowerCase().includes(query) ||
-            (t.body || '').toLowerCase().includes(query))
-        : allTemplates;
+            (t.body || '').toLowerCase().includes(query));
+    }
+
     renderAll(filtered);
 }
 
