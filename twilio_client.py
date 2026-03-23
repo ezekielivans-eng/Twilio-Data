@@ -1,4 +1,5 @@
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
@@ -116,17 +117,32 @@ def _fetch_templates_for_client(client):
 
 
 def get_content_templates(account_sid=None):
-    """Fetch content templates from the main account and all sub-accounts."""
+    """Fetch content templates from the main account and all sub-accounts in parallel."""
     result = {}
     # Main account templates
     result.update(_fetch_templates_for_client(get_client()))
 
-    # Sub-account templates
+    # Sub-account templates fetched in parallel
     try:
         subaccounts = get_subaccounts()
-        for acct in subaccounts:
+
+        def fetch_sub_templates(acct):
             sub_client = get_subaccount_client(acct["sid"])
-            result.update(_fetch_templates_for_client(sub_client))
+            return _fetch_templates_for_client(sub_client)
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {
+                executor.submit(fetch_sub_templates, acct): acct
+                for acct in subaccounts
+            }
+            for future in as_completed(futures, timeout=60):
+                try:
+                    result.update(future.result(timeout=30))
+                except Exception as e:
+                    acct = futures[future]
+                    logger.debug(
+                        "Failed templates for %s: %s", acct["sid"], e
+                    )
     except Exception as e:
         logger.debug("Failed to fetch sub-account templates: %s", e)
 

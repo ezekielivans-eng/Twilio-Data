@@ -79,10 +79,16 @@ def cached_templates():
 
 def get_all_subaccount_data(date_from, date_to):
     subaccounts = cached_subaccounts()
-    # Always include the main account too
-    all_accounts = [
-        {"sid": config.TWILIO_ACCOUNT_SID, "friendly_name": "Main Account"}
-    ] + subaccounts
+    # Always include the main account, but deduplicate by SID
+    seen_sids = set()
+    all_accounts = []
+    main_entry = {"sid": config.TWILIO_ACCOUNT_SID, "friendly_name": "Main Account"}
+    all_accounts.append(main_entry)
+    seen_sids.add(config.TWILIO_ACCOUNT_SID)
+    for acct in subaccounts:
+        if acct["sid"] not in seen_sids:
+            all_accounts.append(acct)
+            seen_sids.add(acct["sid"])
 
     def fetch_one(acct):
         sid = acct["sid"]
@@ -271,11 +277,16 @@ def api_templates():
         with_sid = sum(1 for m in all_messages if m.get("content_sid"))
         outbound = sum(1 for m in all_messages if m.get("direction") == "outbound-api")
 
-        # Also return list of sub-accounts for the filter dropdown
+        # Also return list of sub-accounts for the filter dropdown (deduplicated)
         subaccounts = cached_subaccounts()
         account_list = [
             {"sid": config.TWILIO_ACCOUNT_SID, "friendly_name": "Main Account"}
-        ] + [{"sid": a["sid"], "friendly_name": a["friendly_name"]} for a in subaccounts]
+        ]
+        seen = {config.TWILIO_ACCOUNT_SID}
+        for a in subaccounts:
+            if a["sid"] not in seen:
+                account_list.append({"sid": a["sid"], "friendly_name": a["friendly_name"]})
+                seen.add(a["sid"])
 
         return jsonify(
             {

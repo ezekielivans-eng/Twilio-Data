@@ -108,8 +108,6 @@ def aggregate_by_template(messages, template_map=None):
 
     # Process body-text-based groups (messages sent without content_sid)
     for body_text, msgs in body_groups.items():
-        if len(msgs) < 2:
-            continue  # Only show repeated messages (likely templates)
         stats = aggregate_message_statuses(msgs)
         # Use truncated body as name
         display_name = body_text[:50] + ("..." if len(body_text) > 50 else "")
