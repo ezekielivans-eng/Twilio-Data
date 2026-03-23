@@ -4,6 +4,28 @@
 {% block content %}
 <h1>Dashboard</h1>
 
+<div class="template-filters">
+    <div class="filter-group">
+        <label for="directionFilter">Direction:</label>
+        <select id="directionFilter" class="filter-select">
+            <option value="">All</option>
+            <option value="outbound" selected>Outbound Only</option>
+            <option value="inbound">Inbound Only</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="statusFilter">Status:</label>
+        <select id="statusFilter" class="filter-select">
+            <option value="">All Statuses</option>
+            <option value="delivered">Delivered</option>
+            <option value="read">Read</option>
+            <option value="sent">Sent</option>
+            <option value="failed">Failed</option>
+            <option value="undelivered">Undelivered</option>
+        </select>
+    </div>
+</div>
+
 <div class="kpi-cards" id="kpiCards">
     <div class="kpi-card">
         <div class="kpi-label">Total Messages</div>

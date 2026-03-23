@@ -3,7 +3,7 @@ services:
     name: twilio-whatsapp-analytics
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --worker-class gthread --threads 4 --timeout 180
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --worker-class gthread --threads 8 --timeout 180
     envVars:
       - key: TWILIO_ACCOUNT_SID
         sync: false

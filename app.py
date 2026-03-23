@@ -87,6 +87,12 @@ def cached_templates():
 
 
 def get_all_subaccount_data(date_from, date_to):
+    # Cache the entire combined result by date range to avoid re-fetching
+    cache_key = f"all_data:{date_from}:{date_to}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     subaccounts = cached_subaccounts()
     # Always include the main account, but deduplicate by SID
     seen_sids = set()
@@ -101,8 +107,12 @@ def get_all_subaccount_data(date_from, date_to):
 
     def fetch_one(acct):
         sid = acct["sid"]
-        msg_data = cached_messages(sid, date_from, date_to)
-        usage = cached_usage(sid, date_from, date_to)
+        # Fetch messages and usage in parallel per account
+        with ThreadPoolExecutor(max_workers=2) as inner:
+            msg_future = inner.submit(cached_messages, sid, date_from, date_to)
+            usage_future = inner.submit(cached_usage, sid, date_from, date_to)
+            msg_data = msg_future.result(timeout=60)
+            usage = usage_future.result(timeout=60)
         return {
             "sid": sid,
             "friendly_name": acct["friendly_name"],
@@ -112,9 +122,9 @@ def get_all_subaccount_data(date_from, date_to):
         }
 
     results = []
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=8) as executor:
         futures = {executor.submit(fetch_one, acct): acct for acct in all_accounts}
-        for future in as_completed(futures, timeout=90):
+        for future in as_completed(futures, timeout=120):
             try:
                 results.append(future.result(timeout=60))
             except Exception:
@@ -124,9 +134,12 @@ def get_all_subaccount_data(date_from, date_to):
                         "sid": acct["sid"],
                         "friendly_name": acct["friendly_name"],
                         "messages": [],
+                        "limit_reached": False,
                         "usage": [],
                     }
                 )
+
+    cache.set(cache_key, results)
     return results
 
 
@@ -170,6 +183,8 @@ def billing_page():
 def api_dashboard():
     try:
         date_from, date_to = parse_date_params()
+        direction_filter = request.args.get("direction", "")
+        status_filter = request.args.get("status", "")
         all_data = get_all_subaccount_data(date_from, date_to)
 
         all_messages = []
@@ -179,11 +194,34 @@ def api_dashboard():
             if entry.get("limit_reached"):
                 any_limit_reached = True
 
+        # Apply direction filter
+        if direction_filter == "outbound":
+            all_messages = [m for m in all_messages if m.get("direction", "").startswith("outbound")]
+        elif direction_filter == "inbound":
+            all_messages = [m for m in all_messages if m.get("direction", "") == "inbound"]
+
+        # Apply status filter
+        if status_filter:
+            all_messages = [m for m in all_messages if m.get("status") == status_filter]
+
         status_summary = aggregate_message_statuses(all_messages)
         daily = aggregate_by_date(all_messages)
 
-        # Top sub-accounts by volume
-        sub_summary = build_subaccount_summary(all_data)
+        # Top sub-accounts by volume (apply filters to per-account data too)
+        if direction_filter or status_filter:
+            filtered_data = []
+            for entry in all_data:
+                msgs = entry["messages"]
+                if direction_filter == "outbound":
+                    msgs = [m for m in msgs if m.get("direction", "").startswith("outbound")]
+                elif direction_filter == "inbound":
+                    msgs = [m for m in msgs if m.get("direction", "") == "inbound"]
+                if status_filter:
+                    msgs = [m for m in msgs if m.get("status") == status_filter]
+                filtered_data.append({**entry, "messages": msgs})
+            sub_summary = build_subaccount_summary(filtered_data)
+        else:
+            sub_summary = build_subaccount_summary(all_data)
 
         # Top templates
         template_map = cached_templates()
@@ -208,7 +246,24 @@ def api_dashboard():
 def api_subaccounts():
     try:
         date_from, date_to = parse_date_params()
+        direction_filter = request.args.get("direction", "")
+        status_filter = request.args.get("status", "")
         all_data = get_all_subaccount_data(date_from, date_to)
+
+        # Apply filters to messages within each account
+        if direction_filter or status_filter:
+            filtered_data = []
+            for entry in all_data:
+                msgs = entry["messages"]
+                if direction_filter == "outbound":
+                    msgs = [m for m in msgs if m.get("direction", "").startswith("outbound")]
+                elif direction_filter == "inbound":
+                    msgs = [m for m in msgs if m.get("direction", "") == "inbound"]
+                if status_filter:
+                    msgs = [m for m in msgs if m.get("status") == status_filter]
+                filtered_data.append({**entry, "messages": msgs})
+            all_data = filtered_data
+
         summary = build_subaccount_summary(all_data)
         return jsonify(
             {
@@ -269,6 +324,8 @@ def api_templates():
     try:
         date_from, date_to = parse_date_params()
         account_filter = request.args.get("account_sid")
+        direction_filter = request.args.get("direction", "")
+        status_filter = request.args.get("status", "")
 
         if account_filter:
             msg_data = cached_messages(account_filter, date_from, date_to)
@@ -279,12 +336,22 @@ def api_templates():
             for entry in all_data:
                 all_messages.extend(entry["messages"])
 
+        # Apply direction filter
+        if direction_filter == "outbound":
+            all_messages = [m for m in all_messages if m.get("direction", "").startswith("outbound")]
+        elif direction_filter == "inbound":
+            all_messages = [m for m in all_messages if m.get("direction", "") == "inbound"]
+
+        # Apply status filter
+        if status_filter:
+            all_messages = [m for m in all_messages if m.get("status") == status_filter]
+
         template_map = cached_templates()
         template_stats = aggregate_by_template(all_messages, template_map)
 
         # Count messages with/without content_sid for diagnostics
         with_sid = sum(1 for m in all_messages if m.get("content_sid"))
-        outbound = sum(1 for m in all_messages if m.get("direction") == "outbound-api")
+        outbound_count = sum(1 for m in all_messages if m.get("direction", "").startswith("outbound"))
 
         # Also return list of sub-accounts for the filter dropdown (deduplicated)
         subaccounts = cached_subaccounts()
@@ -301,11 +368,12 @@ def api_templates():
             {
                 "templates": template_stats,
                 "subaccounts": account_list,
+                "total_filtered": len(all_messages),
                 "date_from": date_from.strftime("%Y-%m-%d"),
                 "date_to": date_to.strftime("%Y-%m-%d"),
                 "debug": {
                     "total_messages": len(all_messages),
-                    "outbound_messages": outbound,
+                    "outbound_messages": outbound_count,
                     "with_content_sid": with_sid,
                     "template_map_size": len(template_map),
                 },

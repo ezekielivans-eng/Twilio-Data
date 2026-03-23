@@ -12,6 +12,25 @@
         </select>
     </div>
     <div class="filter-group">
+        <label for="directionFilter">Direction:</label>
+        <select id="directionFilter" class="filter-select">
+            <option value="">All</option>
+            <option value="outbound" selected>Outbound Only</option>
+            <option value="inbound">Inbound Only</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="statusFilter">Status:</label>
+        <select id="statusFilter" class="filter-select">
+            <option value="">All Statuses</option>
+            <option value="delivered">Delivered</option>
+            <option value="read">Read</option>
+            <option value="sent">Sent</option>
+            <option value="failed">Failed</option>
+            <option value="undelivered">Undelivered</option>
+        </select>
+    </div>
+    <div class="filter-group">
         <label for="templateSearch">Search:</label>
         <input type="text" id="templateSearch" class="filter-input" placeholder="Search templates...">
     </div>

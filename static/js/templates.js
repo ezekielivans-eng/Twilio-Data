@@ -1,14 +1,30 @@
 let allTemplates = [];
 let currentSort = { key: 'total', asc: false };
+let accountListPopulated = false;
 
-(async function() {
-    const cacheKey = `templates_${getDateParams()}`;
+function getTemplateFilterParams() {
+    const accountSid = document.getElementById('accountFilter')?.value || '';
+    const dir = document.getElementById('directionFilter')?.value || '';
+    const status = document.getElementById('statusFilter')?.value || '';
+    let params = getDateParams();
+    if (accountSid) params += `&account_sid=${accountSid}`;
+    if (dir) params += `&direction=${dir}`;
+    if (status) params += `&status=${status}`;
+    return params;
+}
+
+async function loadTemplates() {
+    const filterParams = getTemplateFilterParams();
+    const cacheKey = `templates_${filterParams}`;
     const cached = sessionStorage.getItem(cacheKey);
 
     if (cached) {
         const data = JSON.parse(cached);
         allTemplates = data.templates;
-        populateAccountFilter(data.subaccounts || []);
+        if (!accountListPopulated) {
+            populateAccountFilter(data.subaccounts || []);
+            accountListPopulated = true;
+        }
         renderAll(allTemplates);
         return;
     }
@@ -17,7 +33,7 @@ let currentSort = { key: 'total', asc: false };
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
-        const res = await fetch(`/api/templates?${getDateParams()}`, { signal: controller.signal });
+        const res = await fetch(`/api/templates?${filterParams}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -26,53 +42,29 @@ let currentSort = { key: 'total', asc: false };
         const data = await res.json();
         safeCacheSet(cacheKey, data);
         allTemplates = data.templates;
-        populateAccountFilter(data.subaccounts || []);
+        if (!accountListPopulated) {
+            populateAccountFilter(data.subaccounts || []);
+            accountListPopulated = true;
+        }
         renderAll(allTemplates);
         hideLoading();
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
     }
-})();
+}
 
-// Account filter
-document.getElementById('accountFilter').addEventListener('change', async function() {
-    const accountSid = this.value;
-    const filterCacheKey = `templates_${getDateParams()}_${accountSid || 'all'}`;
-    const cached = sessionStorage.getItem(filterCacheKey);
+// Filter change handlers - all trigger a fresh load
+document.getElementById('accountFilter').addEventListener('change', loadTemplates);
+document.getElementById('directionFilter').addEventListener('change', loadTemplates);
+document.getElementById('statusFilter').addEventListener('change', loadTemplates);
 
-    if (cached) {
-        const data = JSON.parse(cached);
-        allTemplates = data.templates;
-        applySearch();
-        return;
-    }
-
-    showLoading();
-    try {
-        let url = `/api/templates?${getDateParams()}`;
-        if (accountSid) url += `&account_sid=${accountSid}`;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000);
-        const res = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `Server error (${res.status})`);
-        }
-        const data = await res.json();
-        safeCacheSet(filterCacheKey, data);
-        allTemplates = data.templates;
-        applySearch();
-        hideLoading();
-    } catch(e) {
-        showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
-    }
-});
-
-// Search filter
+// Search filter (client-side only)
 document.getElementById('templateSearch').addEventListener('input', function() {
     applySearch();
 });
+
+// Initial load
+loadTemplates();
 
 function applySearch() {
     const query = document.getElementById('templateSearch').value.toLowerCase();
@@ -263,5 +255,3 @@ function renderScatterChart(templates) {
         }
     });
 }
-
-// escapeHtml is defined globally in base.html
