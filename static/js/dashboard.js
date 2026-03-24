@@ -46,9 +46,15 @@ async function loadDashboard() {
 }
 
 // Filter change handlers
-document.getElementById('directionFilter')?.addEventListener('change', loadDashboard);
+document.getElementById('directionFilter')?.addEventListener('change', () => {
+    if (window.updateURLFilters) updateURLFilters();
+    loadDashboard();
+});
 document.getElementById('statusFilter')?.addEventListener('change', (e) => {
-    if (e.target.type === 'checkbox') loadDashboard();
+    if (e.target.type === 'checkbox') {
+        if (window.updateURLFilters) updateURLFilters();
+        loadDashboard();
+    }
 });
 
 // Initial load — wait for account filter to be ready

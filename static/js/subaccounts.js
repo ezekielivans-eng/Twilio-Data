@@ -43,9 +43,15 @@ async function loadSubaccounts() {
 }
 
 // Filter change handlers
-document.getElementById('directionFilter')?.addEventListener('change', loadSubaccounts);
+document.getElementById('directionFilter')?.addEventListener('change', () => {
+    if (window.updateURLFilters) updateURLFilters();
+    loadSubaccounts();
+});
 document.getElementById('statusFilter')?.addEventListener('change', (e) => {
-    if (e.target.type === 'checkbox') loadSubaccounts();
+    if (e.target.type === 'checkbox') {
+        if (window.updateURLFilters) updateURLFilters();
+        loadSubaccounts();
+    }
 });
 
 // Initial load — wait for account filter to be ready

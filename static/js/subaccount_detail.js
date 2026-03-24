@@ -42,9 +42,15 @@ async function loadDetail() {
 }
 
 // Filter change handlers
-document.getElementById('directionFilter').addEventListener('change', loadDetail);
+document.getElementById('directionFilter').addEventListener('change', () => {
+    if (window.updateURLFilters) updateURLFilters();
+    loadDetail();
+});
 document.getElementById('statusFilter').addEventListener('change', (e) => {
-    if (e.target.type === 'checkbox') loadDetail();
+    if (e.target.type === 'checkbox') {
+        if (window.updateURLFilters) updateURLFilters();
+        loadDetail();
+    }
 });
 
 // Initial load
@@ -148,6 +154,9 @@ function renderTemplatesTable(templates) {
     templates.forEach((t) => {
         const tr = document.createElement('tr');
         tr.className = 'template-row clickable';
+        tr.tabIndex = 0;
+        tr.setAttribute('role', 'button');
+        tr.setAttribute('aria-expanded', 'false');
         tr.innerHTML = `
             <td>
                 <span class="expand-icon">&#9654;</span>
@@ -184,11 +193,16 @@ function renderTemplatesTable(templates) {
             </td>
         `;
 
-        tr.addEventListener('click', () => {
+        function toggleRow() {
             const isOpen = detailTr.style.display !== 'none';
             detailTr.style.display = isOpen ? 'none' : 'table-row';
             tr.querySelector('.expand-icon').innerHTML = isOpen ? '&#9654;' : '&#9660;';
             tr.classList.toggle('expanded', !isOpen);
+            tr.setAttribute('aria-expanded', String(!isOpen));
+        }
+        tr.addEventListener('click', toggleRow);
+        tr.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRow(); }
         });
 
         tbody.appendChild(tr);

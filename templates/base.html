@@ -33,6 +33,15 @@
             </label>
             <button id="applyDates" class="btn btn-primary">Apply</button>
             <button id="refreshCache" class="btn btn-secondary">Refresh Data</button>
+            <label class="auto-refresh-label">
+                <input type="checkbox" id="autoRefresh">
+                Auto
+                <select id="autoRefreshInterval" class="filter-select" style="min-width:auto;padding:0.2rem 0.4rem;font-size:0.75rem;">
+                    <option value="5">5m</option>
+                    <option value="10" selected>10m</option>
+                    <option value="15">15m</option>
+                </select>
+            </label>
             <span id="lastUpdated" class="last-updated"></span>
         </div>
 
@@ -89,8 +98,16 @@
                     opt.textContent = a.friendly_name;
                     globalAcctFilter.appendChild(opt);
                 });
-                // Default to "All Accounts"
-                globalAcctFilter.value = '';
+                // Restore account filter from URL, default to "All Accounts"
+                const urlAcct = params.get('account_sid') || '';
+                const urlExclude = params.get('exclude_accounts') || '';
+                if (urlAcct) {
+                    globalAcctFilter.value = urlAcct;
+                } else if (urlExclude) {
+                    globalAcctFilter.value = '__exclude_main__';
+                } else {
+                    globalAcctFilter.value = '';
+                }
             }).catch(() => {});
 
             // Pages can await this before their initial load
@@ -149,6 +166,88 @@
                 document.getElementById('lastUpdated').textContent =
                     'Updated ' + now.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
             };
+            // Restore direction filter from URL
+            const urlDirection = params.get('direction') || '';
+            const dirEl = document.getElementById('directionFilter');
+            if (dirEl && urlDirection) {
+                dirEl.value = urlDirection;
+            }
+
+            // Restore status filter from URL
+            const urlStatus = params.get('status') || '';
+            if (urlStatus) {
+                const statusSet = new Set(urlStatus.split(','));
+                const container = document.getElementById('statusFilter');
+                if (container) {
+                    container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                        cb.checked = statusSet.has(cb.value);
+                    });
+                }
+            }
+
+            // Update URL with current filter state (no reload)
+            window.updateURLFilters = () => {
+                const url = new URL(window.location);
+                // Direction
+                const dir = document.getElementById('directionFilter')?.value || '';
+                if (dir) url.searchParams.set('direction', dir);
+                else url.searchParams.delete('direction');
+                // Status
+                const status = getStatusFilterValues();
+                if (status) url.searchParams.set('status', status);
+                else url.searchParams.delete('status');
+                // Account
+                const acctVal = globalAcctFilter.value;
+                url.searchParams.delete('account_sid');
+                url.searchParams.delete('exclude_accounts');
+                if (acctVal === '__exclude_main__' && mainAccountSid) {
+                    url.searchParams.set('exclude_accounts', mainAccountSid);
+                } else if (acctVal && acctVal !== '__exclude_main__') {
+                    url.searchParams.set('account_sid', acctVal);
+                }
+                history.replaceState(null, '', url);
+            };
+
+            // Auto-refresh
+            let autoRefreshTimer = null;
+            const autoRefreshCb = document.getElementById('autoRefresh');
+            const autoRefreshSel = document.getElementById('autoRefreshInterval');
+            // Restore from localStorage
+            if (localStorage.getItem('autoRefresh') === '1') {
+                autoRefreshCb.checked = true;
+                const savedMin = localStorage.getItem('autoRefreshMin');
+                if (savedMin) autoRefreshSel.value = savedMin;
+                startAutoRefresh();
+            }
+            function startAutoRefresh() {
+                stopAutoRefresh();
+                const minutes = parseInt(autoRefreshSel.value) || 10;
+                autoRefreshTimer = setInterval(() => {
+                    sessionStorage.clear();
+                    fetch('/api/cache/clear', {method: 'POST'}).then(() => {
+                        if (window._onAccountFilterChange) window._onAccountFilterChange();
+                        else window.location.reload();
+                    });
+                }, minutes * 60 * 1000);
+            }
+            function stopAutoRefresh() {
+                if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+            }
+            autoRefreshCb.addEventListener('change', () => {
+                if (autoRefreshCb.checked) {
+                    localStorage.setItem('autoRefresh', '1');
+                    localStorage.setItem('autoRefreshMin', autoRefreshSel.value);
+                    startAutoRefresh();
+                } else {
+                    localStorage.removeItem('autoRefresh');
+                    stopAutoRefresh();
+                }
+            });
+            autoRefreshSel.addEventListener('change', () => {
+                localStorage.setItem('autoRefreshMin', autoRefreshSel.value);
+                if (autoRefreshCb.checked) startAutoRefresh();
+            });
+
             window.exportCSV = (filename, headers, rows) => {
                 const escape = (val) => {
                     const s = String(val == null ? '' : val);

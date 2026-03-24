@@ -53,9 +53,15 @@ async function loadTemplates() {
 }
 
 // Filter change handlers - server-side filters trigger a fresh load
-document.getElementById('directionFilter').addEventListener('change', loadTemplates);
+document.getElementById('directionFilter').addEventListener('change', () => {
+    if (window.updateURLFilters) updateURLFilters();
+    loadTemplates();
+});
 document.getElementById('statusFilter').addEventListener('change', (e) => {
-    if (e.target.type === 'checkbox') loadTemplates();
+    if (e.target.type === 'checkbox') {
+        if (window.updateURLFilters) updateURLFilters();
+        loadTemplates();
+    }
 });
 document.getElementById('showUnused').addEventListener('change', loadTemplates);
 
@@ -113,6 +119,10 @@ function renderFromFiltered() {
     renderTable(pageSlice, filtered);
     renderPagination(filtered.length);
 
+    // Update export button text with count
+    const exportBtn = document.getElementById('exportTemplatesCSV');
+    if (exportBtn) exportBtn.textContent = `Export All (${filtered.length})`;
+
     const empty = document.getElementById('emptyState');
     const table = document.getElementById('templatesTable');
     if (filtered.length === 0) {
@@ -165,6 +175,9 @@ function renderTable(pageTemplates, allFiltered) {
         const tr = document.createElement('tr');
         tr.className = 'template-row clickable';
         tr.dataset.index = i;
+        tr.tabIndex = 0;
+        tr.setAttribute('role', 'button');
+        tr.setAttribute('aria-expanded', 'false');
         tr.innerHTML = `
             <td>
                 <span class="expand-icon">&#9654;</span>
@@ -203,11 +216,16 @@ function renderTable(pageTemplates, allFiltered) {
             </td>
         `;
 
-        tr.addEventListener('click', () => {
+        function toggleRow() {
             const isOpen = detailTr.style.display !== 'none';
             detailTr.style.display = isOpen ? 'none' : 'table-row';
             tr.querySelector('.expand-icon').innerHTML = isOpen ? '&#9654;' : '&#9660;';
             tr.classList.toggle('expanded', !isOpen);
+            tr.setAttribute('aria-expanded', String(!isOpen));
+        }
+        tr.addEventListener('click', toggleRow);
+        tr.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRow(); }
         });
 
         tbody.appendChild(tr);
