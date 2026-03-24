@@ -53,15 +53,8 @@ limiter = Limiter(get_remote_address, app=app, default_limits=["60 per minute"])
 
 cache = TTLCache(ttl_seconds=config.CACHE_TTL_SECONDS)
 
-_executor = None
-
-
-def _get_executor():
-    global _executor
-    if _executor is None:
-        _executor = ThreadPoolExecutor(max_workers=3)
-        atexit.register(_executor.shutdown, wait=True, cancel_futures=False)
-    return _executor
+_executor = ThreadPoolExecutor(max_workers=6)
+atexit.register(_executor.shutdown, wait=False, cancel_futures=True)
 
 
 @app.before_request
@@ -206,9 +199,8 @@ def get_all_subaccount_data(date_from, date_to):
 
     results = []
     errors = []
-    executor = _get_executor()
-    futures = {executor.submit(fetch_one, acct): acct for acct in all_accounts}
-    for future in as_completed(futures, timeout=150):
+    futures = {_executor.submit(fetch_one, acct): acct for acct in all_accounts}
+    for future in as_completed(futures, timeout=90):
         try:
             results.append(future.result(timeout=60))
         except Exception as e:
