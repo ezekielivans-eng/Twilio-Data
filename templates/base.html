@@ -17,6 +17,7 @@
             <a href="/dashboard" class="nav-link {% if request.path in ['/', '/dashboard'] %}active{% endif %}">Dashboard</a>
             <a href="/subaccounts" class="nav-link {% if '/subaccounts' in request.path %}active{% endif %}">Sub-Accounts</a>
             <a href="/templates" class="nav-link {% if request.path == '/templates' %}active{% endif %}">Templates</a>
+            <a href="/errors" class="nav-link {% if request.path == '/errors' %}active{% endif %}">Errors</a>
             <a href="/billing" class="nav-link {% if request.path == '/billing' %}active{% endif %}">Billing</a>
         </div>
     </nav>
@@ -58,20 +59,19 @@
         (function() {
             const params = new URLSearchParams(window.location.search);
             const today = new Date().toISOString().split('T')[0];
-            const defaultFrom = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
 
             const dateFrom = document.getElementById('dateFrom');
             const dateTo = document.getElementById('dateTo');
 
-            dateFrom.value = params.get('date_from') || defaultFrom;
+            dateFrom.value = params.get('date_from') || today;
             dateTo.value = params.get('date_to') || today;
 
             document.getElementById('applyDates').addEventListener('click', () => {
                 const from = new Date(dateFrom.value);
                 const to = new Date(dateTo.value);
                 const diffDays = Math.round((to - from) / 86400000);
-                if (diffDays < 1 || diffDays > 30) {
-                    alert('Date range must be between 1 and 30 days.');
+                if (diffDays < 0 || diffDays > 90) {
+                    alert('Date range must be between 0 and 90 days.');
                     return;
                 }
                 sessionStorage.clear();

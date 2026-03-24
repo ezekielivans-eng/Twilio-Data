@@ -2,6 +2,7 @@ let statusChartInstance = null;
 let timelineChartInstance = null;
 let templateChartInstance = null;
 let currentTemplates = [];
+let currentSort = { key: 'total', asc: false };
 
 function getDetailFilterParams() {
     const dir = document.getElementById('directionFilter')?.value || '';
@@ -71,7 +72,7 @@ function renderPage(data) {
         if (!existing) {
             const warn = document.createElement('div');
             warn.className = 'limit-warning';
-            warn.innerHTML = 'Message fetch limit reached. Totals may be approximate. Try a shorter date range for exact numbers.';
+            warn.innerHTML = 'Message fetch limit reached for ' + escapeHtml(data.account_name) + ' — totals may be approximate. Try a shorter date range for exact numbers.';
             document.querySelector('.container').insertBefore(warn, document.getElementById('loading').nextSibling);
         }
     }
@@ -83,7 +84,6 @@ function renderKPIs(s) {
     document.getElementById('kpiTotal').textContent = s.total.toLocaleString();
     document.getElementById('kpiDelivery').textContent = s.delivery_rate + '%';
     document.getElementById('kpiRead').textContent = s.read_rate + '%';
-    document.getElementById('kpiError').textContent = s.error_rate + '%';
 }
 
 function renderStatusChart(s) {
@@ -91,10 +91,10 @@ function renderStatusChart(s) {
     statusChartInstance = safeChart('statusChart', {
         type: 'doughnut',
         data: {
-            labels: ['Delivered', 'Read', 'Sent', 'Sending', 'Failed', 'Undelivered', 'Queued'],
+            labels: ['Delivered', 'Read', 'Sent'],
             datasets: [{
-                data: [s.delivered, s.read, s.sent, s.sending, s.failed, s.undelivered, s.queued],
-                backgroundColor: ['#25d366', '#0dcaf0', '#ffc107', '#adb5bd', '#dc3545', '#fd7e14', '#6c757d']
+                data: [s.delivered, s.read, s.sent],
+                backgroundColor: ['#25d366', '#0dcaf0', '#ffc107']
             }]
         },
         options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
@@ -104,8 +104,7 @@ function renderStatusChart(s) {
 function renderTimelineChart(daily) {
     if (timelineChartInstance) timelineChartInstance.destroy();
     const colors = {
-        delivered: '#25d366', read: '#0dcaf0', sent: '#ffc107',
-        failed: '#dc3545', undelivered: '#fd7e14', queued: '#6c757d'
+        delivered: '#25d366', read: '#0dcaf0', sent: '#ffc107'
     };
     timelineChartInstance = safeChart('timelineChart', {
         type: 'line',
@@ -136,8 +135,7 @@ function renderTemplateChart(templates) {
             labels: top.map(t => t.template_name.substring(0, 30)),
             datasets: [
                 { label: 'Delivery Rate', data: top.map(t => t.delivery_rate), backgroundColor: '#25d366' },
-                { label: 'Read Rate', data: top.map(t => t.read_rate), backgroundColor: '#0dcaf0' },
-                { label: 'Error Rate', data: top.map(t => t.error_rate), backgroundColor: '#dc3545' }
+                { label: 'Read Rate', data: top.map(t => t.read_rate), backgroundColor: '#0dcaf0' }
             ]
         },
         options: {
@@ -166,17 +164,15 @@ function renderTemplatesTable(templates) {
             <td>${t.total.toLocaleString()}</td>
             <td>${t.delivered.toLocaleString()}</td>
             <td>${t.read.toLocaleString()}</td>
-            <td>${t.failed.toLocaleString()}</td>
             <td><span class="badge badge-success">${t.delivery_rate}%</span></td>
             <td><span class="badge badge-info">${t.read_rate}%</span></td>
-            <td><span class="badge ${t.error_rate > 5 ? 'badge-danger' : 'badge-warning'}">${t.error_rate}%</span></td>
         `;
 
         const detailTr = document.createElement('tr');
         detailTr.className = 'template-detail-row';
         detailTr.style.display = 'none';
         detailTr.innerHTML = `
-            <td colspan="8">
+            <td colspan="6">
                 <div class="template-body-container">
                     <div class="template-body-header">
                         <span class="template-body-label">Template Body</span>
@@ -187,8 +183,6 @@ function renderTemplatesTable(templates) {
                         <div class="stat-pill"><span class="stat-label">Total Sent</span><span class="stat-value">${t.total.toLocaleString()}</span></div>
                         <div class="stat-pill stat-success"><span class="stat-label">Delivered</span><span class="stat-value">${t.delivered.toLocaleString()}</span></div>
                         <div class="stat-pill stat-info"><span class="stat-label">Read</span><span class="stat-value">${t.read.toLocaleString()}</span></div>
-                        <div class="stat-pill stat-danger"><span class="stat-label">Failed</span><span class="stat-value">${t.failed.toLocaleString()}</span></div>
-                        <div class="stat-pill"><span class="stat-label">Undelivered</span><span class="stat-value">${(t.undelivered || 0).toLocaleString()}</span></div>
                     </div>
                 </div>
             </td>
@@ -209,13 +203,45 @@ function renderTemplatesTable(templates) {
         tbody.appendChild(tr);
         tbody.appendChild(detailTr);
     });
+
+    // Sorting
+    document.querySelectorAll('#detailTemplatesTable thead th').forEach(th => {
+        th.onclick = () => {
+            const key = th.dataset.sort;
+            if (!key) return;
+            if (currentSort.key === key) {
+                currentSort.asc = !currentSort.asc;
+            } else {
+                currentSort.key = key;
+                currentSort.asc = false;
+            }
+            const sorted = [...templates].sort((a, b) => {
+                const av = a[key], bv = b[key];
+                let cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+                return currentSort.asc ? cmp : -cmp;
+            });
+            updateSortIndicators(key);
+            renderTemplatesTable(sorted);
+        };
+    });
+
+    updateSortIndicators(currentSort.key);
+}
+
+function updateSortIndicators(activeKey) {
+    document.querySelectorAll('#detailTemplatesTable thead th').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.dataset.sort === activeKey) {
+            th.classList.add(currentSort.asc ? 'sort-asc' : 'sort-desc');
+        }
+    });
 }
 
 document.getElementById('exportDetailCSV')?.addEventListener('click', () => {
-    const headers = ['Template Name', 'Body', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const headers = ['Template Name', 'Body', 'Total', 'Delivered', 'Read', 'Delivery Rate', 'Read Rate'];
     const rows = currentTemplates.map(t => [
-        t.template_name, t.body || '', t.total, t.delivered, t.read, t.failed,
-        t.delivery_rate + '%', t.read_rate + '%', t.error_rate + '%'
+        t.template_name, t.body || '', t.total, t.delivered, t.read,
+        t.delivery_rate + '%', t.read_rate + '%'
     ]);
     exportCSV(csvFilename('subaccount_templates'), headers, rows);
 });

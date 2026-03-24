@@ -2,6 +2,7 @@ from data_aggregator import (
     aggregate_billing,
     aggregate_by_date,
     aggregate_by_template,
+    aggregate_errors,
     aggregate_message_statuses,
     build_subaccount_summary,
 )
@@ -57,13 +58,15 @@ def test_by_date_groups_by_day():
     msgs = [
         {"date_sent": "2024-01-15T10:00:00+00:00", "status": "delivered"},
         {"date_sent": "2024-01-15T11:00:00+00:00", "status": "read"},
-        {"date_sent": "2024-01-16T09:00:00+00:00", "status": "failed"},
+        {"date_sent": "2024-01-16T09:00:00+00:00", "status": "sent"},
     ]
     result = aggregate_by_date(msgs)
     assert result["dates"] == ["2024-01-15", "2024-01-16"]
     assert result["totals"] == [2, 1]
     assert result["series"]["delivered"] == [1, 0]
-    assert result["series"]["failed"] == [0, 1]
+    assert result["series"]["sent"] == [0, 1]
+    # Only delivery statuses in series
+    assert "failed" not in result["series"]
 
 
 def test_by_date_falls_back_to_date_created():
@@ -215,3 +218,35 @@ def test_subaccount_summary():
 def test_subaccount_summary_empty():
     result = build_subaccount_summary([])
     assert result == []
+
+
+# ── aggregate_errors ─────────────────────────────────────────
+
+
+def test_errors_basic():
+    msgs = [
+        {"status": "failed", "error_code": 63016},
+        {"status": "failed", "error_code": 63016},
+        {"status": "undelivered", "error_code": 63015},
+        {"status": "delivered"},  # should be ignored
+    ]
+    result = aggregate_errors(msgs)
+    assert result["summary"]["total"] == 3
+    assert result["summary"]["failed"] == 2
+    assert result["summary"]["undelivered"] == 1
+    assert len(result["errors"]) == 2
+    # Sorted by count desc
+    assert result["errors"][0]["error_code"] == 63016
+    assert result["errors"][0]["count"] == 2
+
+
+def test_errors_empty():
+    result = aggregate_errors([])
+    assert result["summary"]["total"] == 0
+    assert result["errors"] == []
+
+
+def test_errors_unknown_code():
+    msgs = [{"status": "failed", "error_code": None}]
+    result = aggregate_errors(msgs)
+    assert result["errors"][0]["error_code"] == "unknown"

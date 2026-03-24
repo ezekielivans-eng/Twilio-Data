@@ -20,9 +20,6 @@
             <label class="checkbox-label"><input type="checkbox" value="delivered" checked> Delivered</label>
             <label class="checkbox-label"><input type="checkbox" value="read" checked> Read</label>
             <label class="checkbox-label"><input type="checkbox" value="sent" checked> Sent</label>
-            <label class="checkbox-label"><input type="checkbox" value="failed" checked> Failed</label>
-            <label class="checkbox-label"><input type="checkbox" value="undelivered" checked> Undelivered</label>
-            <label class="checkbox-label"><input type="checkbox" value="queued" checked> Queued</label>
         </div>
     </div>
 </div>
@@ -39,10 +36,6 @@
     <div class="kpi-card kpi-info">
         <div class="kpi-label">Read Rate</div>
         <div class="kpi-value" id="kpiRead">-</div>
-    </div>
-    <div class="kpi-card kpi-danger">
-        <div class="kpi-label">Error Rate</div>
-        <div class="kpi-value" id="kpiError">-</div>
     </div>
 </div>
 
@@ -67,17 +60,15 @@
         <h3>Templates Used <span class="table-hint">(click a row to view body text)</span></h3>
         <button id="exportDetailCSV" class="btn btn-secondary btn-sm">Export CSV</button>
     </div>
-    <table>
+    <table id="detailTemplatesTable">
         <thead>
             <tr>
-                <th>Template Name</th>
-                <th>Total</th>
-                <th>Delivered</th>
-                <th>Read</th>
-                <th>Failed</th>
-                <th>Delivery Rate</th>
-                <th>Read Rate</th>
-                <th>Error Rate</th>
+                <th data-sort="template_name">Template Name</th>
+                <th data-sort="total">Total</th>
+                <th data-sort="delivered">Delivered</th>
+                <th data-sort="read">Read</th>
+                <th data-sort="delivery_rate">Delivery Rate</th>
+                <th data-sort="read_rate">Read Rate</th>
             </tr>
         </thead>
         <tbody id="templatesBody"></tbody>

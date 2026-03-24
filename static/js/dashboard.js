@@ -105,7 +105,6 @@ function renderKPIs(s) {
     document.getElementById('kpiTotal').textContent = s.total.toLocaleString();
     document.getElementById('kpiDelivery').textContent = s.delivery_rate + '%';
     document.getElementById('kpiRead').textContent = s.read_rate + '%';
-    document.getElementById('kpiError').textContent = s.error_rate + '%';
 }
 
 function renderStatusChart(s) {
@@ -113,10 +112,10 @@ function renderStatusChart(s) {
     statusChartInstance = safeChart('statusChart', {
         type: 'doughnut',
         data: {
-            labels: ['Delivered', 'Read', 'Sent', 'Sending', 'Failed', 'Undelivered', 'Queued'],
+            labels: ['Delivered', 'Read', 'Sent'],
             datasets: [{
-                data: [s.delivered, s.read, s.sent, s.sending, s.failed, s.undelivered, s.queued],
-                backgroundColor: ['#25d366', '#0dcaf0', '#ffc107', '#adb5bd', '#dc3545', '#fd7e14', '#6c757d']
+                data: [s.delivered, s.read, s.sent],
+                backgroundColor: ['#25d366', '#0dcaf0', '#ffc107']
             }]
         },
         options: {
@@ -129,8 +128,7 @@ function renderStatusChart(s) {
 function renderTimelineChart(daily) {
     if (timelineChartInstance) timelineChartInstance.destroy();
     const colors = {
-        delivered: '#25d366', read: '#0dcaf0', sent: '#ffc107',
-        failed: '#dc3545', undelivered: '#fd7e14', queued: '#6c757d'
+        delivered: '#25d366', read: '#0dcaf0', sent: '#ffc107'
     };
     const datasets = Object.entries(daily.series).map(([status, values]) => ({
         label: status.charAt(0).toUpperCase() + status.slice(1),
@@ -200,10 +198,8 @@ function renderTopSubaccountsTable(subaccounts) {
             <td>${a.total_messages.toLocaleString()}</td>
             <td>${a.delivered.toLocaleString()}</td>
             <td>${a.read.toLocaleString()}</td>
-            <td>${a.failed.toLocaleString()}</td>
             <td><span class="badge badge-success">${a.delivery_rate}%</span></td>
             <td><span class="badge badge-info">${a.read_rate}%</span></td>
-            <td><span class="badge ${a.error_rate > 5 ? 'badge-danger' : 'badge-warning'}">${a.error_rate}%</span></td>
         </tr>
     `).join('');
 }
@@ -215,28 +211,26 @@ function renderTopTemplatesTable(templates) {
             <td>${t.total.toLocaleString()}</td>
             <td>${t.delivered.toLocaleString()}</td>
             <td>${t.read.toLocaleString()}</td>
-            <td>${t.failed.toLocaleString()}</td>
             <td><span class="badge badge-success">${t.delivery_rate}%</span></td>
             <td><span class="badge badge-info">${t.read_rate}%</span></td>
-            <td><span class="badge ${t.error_rate > 5 ? 'badge-danger' : 'badge-warning'}">${t.error_rate}%</span></td>
         </tr>
     `).join('');
 }
 
 document.getElementById('exportSubaccountsCSV')?.addEventListener('click', () => {
-    const headers = ['Account Name', 'Total Messages', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const headers = ['Account Name', 'Total Messages', 'Delivered', 'Read', 'Delivery Rate', 'Read Rate'];
     const rows = currentTopSubaccounts.map(a => [
-        a.friendly_name, a.total_messages, a.delivered, a.read, a.failed,
-        a.delivery_rate + '%', a.read_rate + '%', a.error_rate + '%'
+        a.friendly_name, a.total_messages, a.delivered, a.read,
+        a.delivery_rate + '%', a.read_rate + '%'
     ]);
     exportCSV(csvFilename('dashboard_subaccounts'), headers, rows);
 });
 
 document.getElementById('exportTemplatesCSV')?.addEventListener('click', () => {
-    const headers = ['Template Name', 'Body', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const headers = ['Template Name', 'Body', 'Total', 'Delivered', 'Read', 'Delivery Rate', 'Read Rate'];
     const rows = currentTopTemplates.map(t => [
-        t.template_name, t.body || '', t.total, t.delivered, t.read, t.failed,
-        t.delivery_rate + '%', t.read_rate + '%', t.error_rate + '%'
+        t.template_name, t.body || '', t.total, t.delivered, t.read,
+        t.delivery_rate + '%', t.read_rate + '%'
     ]);
     exportCSV(csvFilename('dashboard_templates'), headers, rows);
 });

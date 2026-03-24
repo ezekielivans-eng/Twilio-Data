@@ -19,9 +19,6 @@
             <label class="checkbox-label"><input type="checkbox" value="delivered" checked> Delivered</label>
             <label class="checkbox-label"><input type="checkbox" value="read" checked> Read</label>
             <label class="checkbox-label"><input type="checkbox" value="sent" checked> Sent</label>
-            <label class="checkbox-label"><input type="checkbox" value="failed" checked> Failed</label>
-            <label class="checkbox-label"><input type="checkbox" value="undelivered" checked> Undelivered</label>
-            <label class="checkbox-label"><input type="checkbox" value="queued" checked> Queued</label>
         </div>
     </div>
 </div>
@@ -38,10 +35,6 @@
     <div class="kpi-card kpi-info">
         <div class="kpi-label">Read Rate</div>
         <div class="kpi-value" id="kpiRead">-</div>
-    </div>
-    <div class="kpi-card kpi-danger">
-        <div class="kpi-label">Error Rate</div>
-        <div class="kpi-value" id="kpiError">-</div>
     </div>
 </div>
 
@@ -83,10 +76,8 @@
                 <th>Total Messages</th>
                 <th>Delivered</th>
                 <th>Read</th>
-                <th>Failed</th>
                 <th>Delivery Rate</th>
                 <th>Read Rate</th>
-                <th>Error Rate</th>
             </tr>
         </thead>
         <tbody id="topSubaccountsBody"></tbody>
@@ -105,10 +96,8 @@
                 <th>Total</th>
                 <th>Delivered</th>
                 <th>Read</th>
-                <th>Failed</th>
                 <th>Delivery Rate</th>
                 <th>Read Rate</th>
-                <th>Error Rate</th>
             </tr>
         </thead>
         <tbody id="topTemplatesBody"></tbody>

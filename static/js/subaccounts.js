@@ -88,10 +88,8 @@ function renderTable(subaccounts) {
             <td>${a.total_messages.toLocaleString()}</td>
             <td>${a.delivered.toLocaleString()}</td>
             <td>${a.read.toLocaleString()}</td>
-            <td>${a.failed.toLocaleString()}</td>
             <td><span class="badge badge-success">${a.delivery_rate}%</span></td>
             <td><span class="badge badge-info">${a.read_rate}%</span></td>
-            <td><span class="badge ${a.error_rate > 5 ? 'badge-danger' : 'badge-warning'}">${a.error_rate}%</span></td>
             <td>$${a.spend.toFixed(2)}</td>
         </tr>
     `).join('');
@@ -142,10 +140,10 @@ function renderSpendChart(subaccounts) {
 }
 
 document.getElementById('exportSubaccountsCSV')?.addEventListener('click', () => {
-    const headers = ['Account Name', 'SID', 'Total Messages', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate', 'Spend'];
+    const headers = ['Account Name', 'SID', 'Total Messages', 'Delivered', 'Read', 'Delivery Rate', 'Read Rate', 'Spend'];
     const rows = currentSubaccounts.map(a => [
-        a.friendly_name, a.sid, a.total_messages, a.delivered, a.read, a.failed,
-        a.delivery_rate + '%', a.read_rate + '%', a.error_rate + '%', a.spend.toFixed(2)
+        a.friendly_name, a.sid, a.total_messages, a.delivered, a.read,
+        a.delivery_rate + '%', a.read_rate + '%', a.spend.toFixed(2)
     ]);
     exportCSV(csvFilename('subaccounts'), headers, rows);
 });
