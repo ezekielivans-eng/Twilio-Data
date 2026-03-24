@@ -70,7 +70,7 @@ def get_messages(account_sid, date_from, date_to, limit=1000):
                     "date_sent": str(m.date_sent) if m.date_sent else None,
                     "date_created": str(m.date_created),
                     "direction": m.direction,
-                    "body": (m.body or "")[:100],
+                    "body": (m.body or "")[:500],
                     "error_code": m.error_code,
                     "price": m.price,
                     "content_sid": getattr(m, "content_sid", None),
@@ -162,7 +162,7 @@ def get_usage_records(account_sid, date_from, date_to):
     whatsapp_records = []
     for r in records:
         category = r.category.lower() if r.category else ""
-        if "whatsapp" in category or "conversations" in category:
+        if "whatsapp" in category:
             whatsapp_records.append(
                 {
                     "category": r.category,

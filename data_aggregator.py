@@ -69,13 +69,12 @@ def aggregate_by_template(messages, template_map=None, include_unused=False):
     if template_map is None:
         template_map = {}
 
-    # Build reverse lookup: body prefix (first 100 chars) → content SID
+    # Build reverse lookup: body prefix → content SID
     body_prefix_to_sid = {}
     for sid, info in template_map.items():
         body = (info.get("body") or "").strip()
         if body:
-            # Match on first 100 chars to handle Twilio's body truncation
-            body_prefix_to_sid[body[:100]] = sid
+            body_prefix_to_sid[body[:500]] = sid
 
     def _account_names(msgs):
         """Collect unique account names from messages (if tagged)."""
@@ -94,7 +93,7 @@ def aggregate_by_template(messages, template_map=None, include_unused=False):
             if not body_key:
                 continue
             # Try to match against a known template body before falling back to hash
-            matched_sid = body_prefix_to_sid.get(body_key[:100])
+            matched_sid = body_prefix_to_sid.get(body_key[:500])
             if matched_sid:
                 groups[matched_sid].append(m)
             else:

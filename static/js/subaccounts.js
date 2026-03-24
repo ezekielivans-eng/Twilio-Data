@@ -61,6 +61,9 @@ window.accountsReady.then(() => loadSubaccounts());
 function renderPage(data) {
     if (data.partial_data && data.warnings) showPartialDataWarning(data.warnings);
     else if (data.warnings && data.warnings.length) showWarning(data.warnings);
+    const empty = document.getElementById('emptyState');
+    const totalMsgs = data.subaccounts.reduce((s, a) => s + a.total_messages, 0);
+    empty.style.display = totalMsgs === 0 ? 'block' : 'none';
     currentSubaccounts = data.subaccounts;
     renderTable(data.subaccounts);
     renderSpendChart(data.subaccounts);
@@ -144,5 +147,5 @@ document.getElementById('exportSubaccountsCSV')?.addEventListener('click', () =>
         a.friendly_name, a.sid, a.total_messages, a.delivered, a.read, a.failed,
         a.delivery_rate + '%', a.read_rate + '%', a.error_rate + '%', a.spend.toFixed(2)
     ]);
-    exportCSV('subaccounts_export.csv', headers, rows);
+    exportCSV(csvFilename('subaccounts'), headers, rows);
 });

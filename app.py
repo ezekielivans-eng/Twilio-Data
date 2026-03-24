@@ -1,9 +1,10 @@
 import logging
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, g, jsonify, render_template, request
 from flask_compress import Compress
 
 import config
@@ -44,6 +45,19 @@ Compress(app)
 cache = TTLCache(ttl_seconds=config.CACHE_TTL_SECONDS)
 
 
+@app.before_request
+def _start_timer():
+    g.start_time = time.time()
+
+
+@app.after_request
+def _log_request(response):
+    if request.path.startswith("/api/"):
+        duration = time.time() - getattr(g, "start_time", time.time())
+        logger.info("%s %s %s %.2fs", request.method, request.path, response.status_code, duration)
+    return response
+
+
 MAX_DATE_RANGE_DAYS = 30
 
 
@@ -80,12 +94,15 @@ def validate_account_sid(sid):
     return sid
 
 
+SLOW_CHANGE_TTL = 3600  # 1 hour for data that rarely changes
+
+
 def cached_subaccounts():
     key = "subaccounts"
     data = cache.get(key)
     if data is None:
         data = get_subaccounts()
-        cache.set(key, data)
+        cache.set(key, data, ttl=SLOW_CHANGE_TTL)
     return data
 
 
@@ -114,7 +131,7 @@ def cached_templates():
     data = cache.get(key)
     if data is None:
         data = get_content_templates()
-        cache.set(key, data)
+        cache.set(key, data, ttl=SLOW_CHANGE_TTL)
     return data
 
 

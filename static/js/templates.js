@@ -275,7 +275,7 @@ document.getElementById('exportTemplatesCSV')?.addEventListener('click', () => {
         t.template_name, t.accounts || '', t.body || '', t.total, t.delivered, t.read, t.failed,
         t.delivery_rate + '%', t.read_rate + '%', t.error_rate + '%'
     ]);
-    exportCSV('templates_export.csv', headers, rows);
+    exportCSV(csvFilename('templates'), headers, rows);
 });
 
 function renderRatesChart(templates) {

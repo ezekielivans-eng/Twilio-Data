@@ -11,15 +11,15 @@ class TTLCache:
     def get(self, key):
         with self._lock:
             if key in self._store:
-                value, timestamp = self._store[key]
-                if time.time() - timestamp < self._ttl:
+                value, timestamp, ttl = self._store[key]
+                if time.time() - timestamp < ttl:
                     return value
                 del self._store[key]
             return None
 
-    def set(self, key, value):
+    def set(self, key, value, ttl=None):
         with self._lock:
-            self._store[key] = (value, time.time())
+            self._store[key] = (value, time.time(), ttl or self._ttl)
 
     def clear(self):
         with self._lock:
