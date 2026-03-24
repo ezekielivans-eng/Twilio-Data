@@ -407,6 +407,9 @@ def api_templates():
         all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
         all_messages = []
         for entry in all_data:
+            # Tag each message with its account info for per-template tracking
+            for m in entry["messages"]:
+                m["_account_name"] = entry["friendly_name"]
             all_messages.extend(entry["messages"])
 
         all_messages = apply_message_filters(all_messages, direction_filter, status_values)

@@ -77,6 +77,11 @@ def aggregate_by_template(messages, template_map=None, include_unused=False):
             # Match on first 100 chars to handle Twilio's body truncation
             body_prefix_to_sid[body[:100]] = sid
 
+    def _account_names(msgs):
+        """Collect unique account names from messages (if tagged)."""
+        names = sorted({m["_account_name"] for m in msgs if m.get("_account_name")})
+        return ", ".join(names) if names else ""
+
     groups = defaultdict(list)
     body_groups = defaultdict(list)
 
@@ -111,6 +116,7 @@ def aggregate_by_template(messages, template_map=None, include_unused=False):
                 "template_name": name,
                 "body": body,
                 "template_type": template_type,
+                "accounts": _account_names(msgs),
                 "total": stats["total"],
                 "delivered": stats["delivered"],
                 "read": stats["read"],
@@ -137,6 +143,7 @@ def aggregate_by_template(messages, template_map=None, include_unused=False):
                 "template_name": display_name,
                 "body": body_text,
                 "template_type": "text (no content_sid)",
+                "accounts": _account_names(msgs),
                 "total": stats["total"],
                 "delivered": stats["delivered"],
                 "read": stats["read"],
@@ -159,6 +166,7 @@ def aggregate_by_template(messages, template_map=None, include_unused=False):
                         "template_name": info.get("friendly_name", sid),
                         "body": info.get("body", ""),
                         "template_type": info.get("template_type", "unknown"),
+                        "accounts": "",
                         "total": 0,
                         "delivered": 0,
                         "read": 0,

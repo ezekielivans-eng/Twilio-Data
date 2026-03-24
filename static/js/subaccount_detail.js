@@ -212,9 +212,9 @@ function renderTemplatesTable(templates) {
 }
 
 document.getElementById('exportDetailCSV')?.addEventListener('click', () => {
-    const headers = ['Template Name', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const headers = ['Template Name', 'Body', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
     const rows = currentTemplates.map(t => [
-        t.template_name, t.total, t.delivered, t.read, t.failed,
+        t.template_name, t.body || '', t.total, t.delivered, t.read, t.failed,
         t.delivery_rate + '%', t.read_rate + '%', t.error_rate + '%'
     ]);
     exportCSV('subaccount_templates.csv', headers, rows);

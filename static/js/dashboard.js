@@ -221,9 +221,9 @@ document.getElementById('exportSubaccountsCSV')?.addEventListener('click', () =>
 });
 
 document.getElementById('exportTemplatesCSV')?.addEventListener('click', () => {
-    const headers = ['Template Name', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const headers = ['Template Name', 'Body', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
     const rows = currentTopTemplates.map(t => [
-        t.template_name, t.total, t.delivered, t.read, t.failed,
+        t.template_name, t.body || '', t.total, t.delivered, t.read, t.failed,
         t.delivery_rate + '%', t.read_rate + '%', t.error_rate + '%'
     ]);
     exportCSV('dashboard_templates.csv', headers, rows);

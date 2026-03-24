@@ -79,30 +79,44 @@ def get_messages(account_sid, date_from, date_to, limit=1000):
     return {"messages": whatsapp_messages, "limit_reached": len(messages) >= limit}
 
 
+def _get_field(obj, field):
+    """Get a field from a dict or SDK model object."""
+    if isinstance(obj, dict):
+        return obj.get(field)
+    return getattr(obj, field, None)
+
+
 def _extract_template_body(content_obj):
     """Extract body text and type from a Twilio Content template object."""
     types = getattr(content_obj, "types", None) or {}
     if isinstance(types, str):
         return "", "unknown"
+    # SDK v9 may return types as a dict of model objects; convert if needed
+    if not isinstance(types, dict):
+        try:
+            types = dict(types)
+        except (TypeError, ValueError):
+            return "", "unknown"
     body_parts = []
     template_type = "unknown"
     for type_key, type_val in types.items():
         template_type = type_key.replace("twilio/", "")
-        if isinstance(type_val, dict):
-            # Direct body field
-            if type_val.get("body"):
-                body_parts.append(type_val["body"])
-            # Card title + body
-            if type_val.get("title"):
-                body_parts.append(type_val["title"])
-            # Subtitle for cards
-            if type_val.get("subtitle"):
-                body_parts.append(type_val["subtitle"])
-            # List picker body + items
-            if type_val.get("items"):
-                for item in type_val["items"]:
-                    if isinstance(item, dict) and item.get("item"):
-                        body_parts.append(item["item"])
+        # Handle both plain dicts and SDK model objects
+        body = _get_field(type_val, "body")
+        if body:
+            body_parts.append(str(body))
+        title = _get_field(type_val, "title")
+        if title:
+            body_parts.append(str(title))
+        subtitle = _get_field(type_val, "subtitle")
+        if subtitle:
+            body_parts.append(str(subtitle))
+        items = _get_field(type_val, "items")
+        if items:
+            for item in items:
+                item_text = _get_field(item, "item") if not isinstance(item, str) else item
+                if item_text:
+                    body_parts.append(str(item_text))
     return "\n".join(body_parts) if body_parts else "", template_type
 
 
