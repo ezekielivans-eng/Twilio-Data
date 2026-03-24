@@ -4,6 +4,17 @@
 {% block content %}
 <h1>Error Analysis</h1>
 
+<div class="template-filters">
+    <div class="filter-group">
+        <label for="directionFilter">Direction:</label>
+        <select id="directionFilter" class="filter-select">
+            <option value="">All</option>
+            <option value="outbound" selected>Outbound Only</option>
+            <option value="inbound">Inbound Only</option>
+        </select>
+    </div>
+</div>
+
 <div class="kpi-cards" id="kpiCards">
     <div class="kpi-card kpi-danger">
         <div class="kpi-label">Total Errors</div>

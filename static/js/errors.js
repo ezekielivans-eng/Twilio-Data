@@ -5,8 +5,15 @@ let currentSort = { key: 'count', asc: false };
 
 window._onAccountFilterChange = loadErrors;
 
+function getErrorFilterParams() {
+    const dir = document.getElementById('directionFilter')?.value || '';
+    let params = getDateParams() + getAccountFilterParam();
+    if (dir) params += `&direction=${dir}`;
+    return params;
+}
+
 async function loadErrors() {
-    const filterParams = getDateParams() + getAccountFilterParam();
+    const filterParams = getErrorFilterParams();
     const cacheKey = `errors_${filterParams}`;
     const cached = sessionStorage.getItem(cacheKey);
 
@@ -19,7 +26,7 @@ async function loadErrors() {
     showLoading();
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000);
+        const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
         const res = await fetchWithDedup(`/api/errors?${filterParams}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) {
@@ -34,6 +41,13 @@ async function loadErrors() {
     }
 }
 
+// Filter change handler
+const debouncedLoadErrors = debounce(loadErrors, 300);
+document.getElementById('directionFilter')?.addEventListener('change', () => {
+    if (window.updateURLFilters) updateURLFilters();
+    debouncedLoadErrors();
+});
+
 window.accountsReady.then(() => loadErrors());
 
 function renderPage(data) {
@@ -41,7 +55,7 @@ function renderPage(data) {
     else if (data.warnings && data.warnings.length) showWarning(data.warnings);
 
     const empty = document.getElementById('emptyState');
-    empty.style.display = data.summary.total === 0 ? 'block' : 'none';
+    if (empty) empty.style.display = (data.summary?.total || 0) === 0 ? 'block' : 'none';
 
     renderKPIs(data.summary);
     renderStatusChart(data.summary);

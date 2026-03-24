@@ -24,4 +24,3 @@ if not FLASK_SECRET_KEY:
             "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
         )
 CACHE_TTL_SECONDS = int(os.environ.get("CACHE_TTL_SECONDS", "300"))
-DATE_RANGE_DAYS = int(os.environ.get("DATE_RANGE_DAYS", "30"))
