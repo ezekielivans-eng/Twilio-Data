@@ -27,7 +27,7 @@ async function loadDetail() {
     showLoading();
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000);
+        const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
         const res = await fetchWithDedup(`/api/subaccounts/${ACCOUNT_SID}?${filterParams}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) {
@@ -44,7 +44,7 @@ async function loadDetail() {
 
 // Filter change handlers
 const debouncedLoad = debounce(loadDetail, 300);
-document.getElementById('directionFilter').addEventListener('change', () => {
+document.getElementById('directionFilter')?.addEventListener('change', () => {
     if (window.updateURLFilters) updateURLFilters();
     debouncedLoad();
 });
@@ -61,6 +61,9 @@ loadDetail();
 function renderPage(data) {
     if (data.warnings && data.warnings.length) showWarning(data.warnings);
     document.getElementById('accountTitle').textContent = `Sub-Account: ${data.account_name}`;
+
+    const empty = document.getElementById('emptyState');
+    if (empty) empty.style.display = (data.status_summary?.total || 0) === 0 ? 'block' : 'none';
     renderKPIs(data.status_summary);
     renderStatusChart(data.status_summary);
     renderTimelineChart(data.daily);

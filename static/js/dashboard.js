@@ -30,7 +30,7 @@ async function loadDashboard() {
     showLoading();
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000);
+        const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
         const res = await fetchWithDedup(`/api/dashboard?${filterParams}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) {
