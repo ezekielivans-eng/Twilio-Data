@@ -11,7 +11,7 @@ TWILIO_TIMEOUT = 30  # seconds
 
 
 def get_client():
-    http_client = TwilioHttpClient(max_retries=0, timeout=TWILIO_TIMEOUT)
+    http_client = TwilioHttpClient(max_retries=3, timeout=TWILIO_TIMEOUT)
     return Client(
         config.TWILIO_ACCOUNT_SID,
         config.TWILIO_AUTH_TOKEN,
@@ -20,7 +20,7 @@ def get_client():
 
 
 def get_subaccount_client(subaccount_sid):
-    http_client = TwilioHttpClient(max_retries=0, timeout=TWILIO_TIMEOUT)
+    http_client = TwilioHttpClient(max_retries=3, timeout=TWILIO_TIMEOUT)
     return Client(
         config.TWILIO_ACCOUNT_SID,
         config.TWILIO_AUTH_TOKEN,

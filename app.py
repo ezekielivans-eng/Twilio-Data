@@ -62,6 +62,9 @@ def _log_request(response):
     elif request.path.startswith("/static/"):
         # Cache static assets for 1 week; they're versioned via Flask's url_for
         response.headers["Cache-Control"] = "public, max-age=604800, immutable"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
 
