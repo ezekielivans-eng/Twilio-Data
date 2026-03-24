@@ -1,6 +1,8 @@
+import atexit
 import logging
 import re
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
@@ -51,25 +53,31 @@ limiter = Limiter(get_remote_address, app=app, default_limits=["60 per minute"])
 
 cache = TTLCache(ttl_seconds=config.CACHE_TTL_SECONDS)
 
+_executor = ThreadPoolExecutor(max_workers=3)
+atexit.register(_executor.shutdown, wait=True, cancel_futures=False)
+
 
 @app.before_request
 def _start_timer():
     g.start_time = time.time()
+    g.request_id = str(uuid.uuid4())
 
 
 @app.after_request
 def _log_request(response):
+    req_id = getattr(g, "request_id", "-")
     if request.path.startswith("/api/"):
         duration = time.time() - getattr(g, "start_time", time.time())
-        logger.info("%s %s %s %.2fs", request.method, request.path, response.status_code, duration)
+        logger.info("[%s] %s %s %s %.2fs", req_id, request.method, request.path, response.status_code, duration)
         if duration > 5:
-            logger.warning("SLOW REQUEST: %s %s took %.2fs", request.method, request.path, duration)
+            logger.warning("[%s] SLOW REQUEST: %s %s took %.2fs", req_id, request.method, request.path, duration)
     elif request.path.startswith("/static/"):
         # Cache static assets for 1 week; they're versioned via Flask's url_for
         response.headers["Cache-Control"] = "public, max-age=604800, immutable"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-Request-ID"] = req_id
     return response
 
 
@@ -191,24 +199,23 @@ def get_all_subaccount_data(date_from, date_to):
 
     results = []
     errors = []
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        futures = {executor.submit(fetch_one, acct): acct for acct in all_accounts}
-        for future in as_completed(futures, timeout=150):
-            try:
-                results.append(future.result(timeout=60))
-            except Exception as e:
-                acct = futures[future]
-                logger.warning("Failed to fetch data for %s (%s): %s", acct["friendly_name"], acct["sid"], e)
-                errors.append(f"Failed to fetch data for {acct['friendly_name']}: {e}")
-                results.append(
-                    {
-                        "sid": acct["sid"],
-                        "friendly_name": acct["friendly_name"],
-                        "messages": [],
-                        "limit_reached": False,
-                        "usage": [],
-                    }
-                )
+    futures = {_executor.submit(fetch_one, acct): acct for acct in all_accounts}
+    for future in as_completed(futures, timeout=150):
+        try:
+            results.append(future.result(timeout=60))
+        except Exception as e:
+            acct = futures[future]
+            logger.warning("[%s] Failed to fetch data for %s (%s): %s", getattr(g, "request_id", "-"), acct["friendly_name"], acct["sid"], e)
+            errors.append(f"Failed to fetch data for {acct['friendly_name']}: {e}")
+            results.append(
+                {
+                    "sid": acct["sid"],
+                    "friendly_name": acct["friendly_name"],
+                    "messages": [],
+                    "limit_reached": False,
+                    "usage": [],
+                }
+            )
 
     return results, errors
 
@@ -379,7 +386,7 @@ def api_dashboard():
     except ValidationError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        logger.exception("api_dashboard failed")
+        logger.exception("[%s] api_dashboard failed", getattr(g, "request_id", "-"))
         return jsonify({"error": "Internal server error"}), 500
 
 
@@ -408,7 +415,7 @@ def api_subaccounts():
     except ValidationError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        logger.exception("api_subaccounts failed")
+        logger.exception("[%s] api_subaccounts failed", getattr(g, "request_id", "-"))
         return jsonify({"error": "Internal server error"}), 500
 
 
@@ -459,7 +466,7 @@ def api_subaccount_detail(sid):
     except ValidationError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        logger.exception("api_subaccount_detail failed for sid=%s", sid)
+        logger.exception("[%s] api_subaccount_detail failed for sid=%s", getattr(g, "request_id", "-"), sid)
         return jsonify({"error": "Internal server error"}), 500
 
 
@@ -506,7 +513,7 @@ def api_templates():
     except ValidationError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        logger.exception("api_templates failed")
+        logger.exception("[%s] api_templates failed", getattr(g, "request_id", "-"))
         return jsonify({"error": "Internal server error"}), 500
 
 
@@ -544,7 +551,7 @@ def api_billing():
     except ValidationError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        logger.exception("api_billing failed")
+        logger.exception("[%s] api_billing failed", getattr(g, "request_id", "-"))
         return jsonify({"error": "Internal server error"}), 500
 
 
@@ -573,7 +580,7 @@ def api_errors():
     except ValidationError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        logger.exception("api_errors failed")
+        logger.exception("[%s] api_errors failed", getattr(g, "request_id", "-"))
         return jsonify({"error": "Internal server error"}), 500
 
 
@@ -582,7 +589,7 @@ def api_accounts():
     try:
         return jsonify({"accounts": get_account_list(), "main_sid": config.TWILIO_ACCOUNT_SID})
     except Exception as e:
-        logger.exception("api_accounts failed")
+        logger.exception("[%s] api_accounts failed", getattr(g, "request_id", "-"))
         return jsonify({"error": "Internal server error"}), 500
 
 
@@ -590,6 +597,11 @@ def api_accounts():
 def api_clear_cache():
     cache.clear()
     return jsonify({"status": "ok", "message": "Cache cleared"})
+
+
+@app.route("/api/cache/stats")
+def api_cache_stats():
+    return jsonify(cache.stats())
 
 
 @app.route("/healthz")

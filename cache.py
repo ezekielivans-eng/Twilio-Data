@@ -9,6 +9,8 @@ class TTLCache:
         self._ttl = ttl_seconds
         self._max_size = max_size
         self._lock = threading.Lock()
+        self._hits = 0
+        self._misses = 0
 
     def get(self, key):
         with self._lock:
@@ -16,8 +18,10 @@ class TTLCache:
                 value, timestamp, ttl = self._store[key]
                 if time.time() - timestamp < ttl:
                     self._store.move_to_end(key)
+                    self._hits += 1
                     return value
                 del self._store[key]
+            self._misses += 1
             return None
 
     def set(self, key, value, ttl=None):
@@ -31,3 +35,15 @@ class TTLCache:
     def clear(self):
         with self._lock:
             self._store.clear()
+
+    def stats(self):
+        with self._lock:
+            total = self._hits + self._misses
+            return {
+                "hits": self._hits,
+                "misses": self._misses,
+                "total_requests": total,
+                "hit_rate": round(self._hits / total * 100, 1) if total > 0 else 0.0,
+                "size": len(self._store),
+                "max_size": self._max_size,
+            }

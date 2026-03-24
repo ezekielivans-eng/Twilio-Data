@@ -137,7 +137,7 @@ function renderSpendChart(subaccounts) {
         options: {
             responsive: true,
             indexAxis: 'y',
-            plugins: { legend: { display: false } }
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return '$' + context.parsed.x.toFixed(2); } } } }
         }
     });
 }

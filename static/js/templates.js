@@ -26,6 +26,7 @@ async function loadTemplates() {
         allTemplates = data.templates;
         currentPage = 0;
         applyClientFilters();
+        setLastUpdated();
         return;
     }
 
@@ -292,7 +293,7 @@ function renderRatesChart(templates) {
         options: {
             responsive: true,
             scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: 'Rate (%)' } } },
-            plugins: { legend: { position: 'bottom' } }
+            plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%'; } } } }
         }
     });
 }

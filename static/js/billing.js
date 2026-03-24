@@ -77,7 +77,7 @@ function renderDailyChart(daily) {
             scales: {
                 y: { beginAtZero: true, title: { display: true, text: 'Spend ($)' } }
             },
-            plugins: { legend: { display: false } }
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return '$' + context.parsed.y.toFixed(2); } } } }
         }
     });
 }
@@ -97,7 +97,7 @@ function renderPieChart(accounts) {
         },
         options: {
             responsive: true,
-            plugins: { legend: { position: 'bottom' } }
+            plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: function(context) { return context.label + ': $' + context.parsed.toFixed(2); } } } }
         }
     });
 }
@@ -127,7 +127,7 @@ function renderCategoryChart(accounts) {
         options: {
             responsive: true,
             indexAxis: 'y',
-            plugins: { legend: { display: false } }
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return '$' + context.parsed.x.toFixed(2); } } } }
         }
     });
 }
