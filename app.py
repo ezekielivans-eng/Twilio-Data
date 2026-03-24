@@ -59,6 +59,9 @@ def _log_request(response):
     if request.path.startswith("/api/"):
         duration = time.time() - getattr(g, "start_time", time.time())
         logger.info("%s %s %s %.2fs", request.method, request.path, response.status_code, duration)
+    elif request.path.startswith("/static/"):
+        # Cache static assets for 1 week; they're versioned via Flask's url_for
+        response.headers["Cache-Control"] = "public, max-age=604800, immutable"
     return response
 
 

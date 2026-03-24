@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Twilio WhatsApp Analytics{% endblock %}</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -135,6 +136,9 @@
                 if (window._onAccountFilterChange) window._onAccountFilterChange();
             }
 
+            // One shared debounced handler for all account checkboxes
+            const debouncedAccountChange = debounce(onAccountFilterChange, 400);
+
             const accountsReady = fetch('/api/accounts').then(r => r.json()).then(data => {
                 mainAccountSid = data.main_sid || '';
                 allAccounts = data.accounts || [];
@@ -146,7 +150,7 @@
                     cb.type = 'checkbox';
                     cb.value = a.sid;
                     cb.checked = !urlExclude.has(a.sid);
-                    cb.addEventListener('change', debounce(onAccountFilterChange, 400));
+                    cb.addEventListener('change', debouncedAccountChange);
                     label.appendChild(cb);
                     label.appendChild(document.createTextNode(' ' + a.friendly_name));
                     acctCheckboxes.appendChild(label);
@@ -359,6 +363,7 @@
         })();
     </script>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
