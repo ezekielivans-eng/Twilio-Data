@@ -1,3 +1,8 @@
+let dailyChartInstance = null;
+let pieChartInstance = null;
+let categoryChartInstance = null;
+let currentAccounts = [];
+
 async function loadBilling() {
     const filterParams = getDateParams() + getAccountFilterParam();
     const cacheKey = `billing_${filterParams}`;
@@ -37,17 +42,21 @@ function renderPage(data) {
     renderPieChart(data.per_account);
     renderCategoryChart(data.per_account);
     renderTable(data.per_account);
+    currentAccounts = data.per_account;
+    setLastUpdated();
     hideLoading();
 }
 
 function renderKPIs(data) {
     document.getElementById('kpiTotalSpend').textContent = `$${data.total_spend.toFixed(2)}`;
     document.getElementById('kpiDailyAvg').textContent = `$${data.daily_average.toFixed(2)}`;
-    document.getElementById('kpiProjected').textContent = `$${data.projected_monthly.toFixed(2)}`;
+    document.getElementById('kpiProjected').textContent =
+        data.projected_monthly != null ? `$${data.projected_monthly.toFixed(2)}` : 'Insufficient data';
 }
 
 function renderDailyChart(daily) {
-    new Chart(document.getElementById('dailySpendChart'), {
+    if (dailyChartInstance) dailyChartInstance.destroy();
+    dailyChartInstance = new Chart(document.getElementById('dailySpendChart'), {
         type: 'bar',
         data: {
             labels: daily.map(d => d.date),
@@ -70,9 +79,10 @@ function renderDailyChart(daily) {
 }
 
 function renderPieChart(accounts) {
+    if (pieChartInstance) pieChartInstance.destroy();
     const filtered = accounts.filter(a => a.total_spend > 0);
     const colors = ['#25d366','#0dcaf0','#ffc107','#dc3545','#fd7e14','#6c757d','#198754','#6f42c1','#d63384','#0d6efd'];
-    new Chart(document.getElementById('spendPieChart'), {
+    pieChartInstance = new Chart(document.getElementById('spendPieChart'), {
         type: 'pie',
         data: {
             labels: filtered.map(a => a.account_name),
@@ -89,6 +99,7 @@ function renderPieChart(accounts) {
 }
 
 function renderCategoryChart(accounts) {
+    if (categoryChartInstance) categoryChartInstance.destroy();
     const allCats = {};
     accounts.forEach(a => {
         Object.entries(a.categories).forEach(([cat, amount]) => {
@@ -99,7 +110,7 @@ function renderCategoryChart(accounts) {
     const sorted = Object.entries(allCats).sort((a, b) => b[1] - a[1]).slice(0, 10);
     const colors = ['#25d366','#0dcaf0','#ffc107','#dc3545','#fd7e14','#6c757d','#198754','#6f42c1','#d63384','#0d6efd'];
 
-    new Chart(document.getElementById('categoryChart'), {
+    categoryChartInstance = new Chart(document.getElementById('categoryChart'), {
         type: 'bar',
         data: {
             labels: sorted.map(([cat]) => cat),
@@ -127,3 +138,9 @@ function renderTable(accounts) {
         </tr>
     `).join('');
 }
+
+document.getElementById('exportBillingCSV')?.addEventListener('click', () => {
+    const headers = ['Account Name', 'Account SID', 'Total Spend'];
+    const rows = currentAccounts.map(a => [a.account_name, a.account_sid, a.total_spend.toFixed(2)]);
+    exportCSV('billing_export.csv', headers, rows);
+});

@@ -1,4 +1,6 @@
 let spendChartInstance = null;
+let currentSort = { key: 'total_messages', asc: false };
+let currentSubaccounts = [];
 
 function getSubFilterParams() {
     const dir = document.getElementById('directionFilter')?.value || '';
@@ -51,9 +53,20 @@ window.accountsReady.then(() => loadSubaccounts());
 
 function renderPage(data) {
     if (data.warnings && data.warnings.length) showWarning(data.warnings);
+    currentSubaccounts = data.subaccounts;
     renderTable(data.subaccounts);
     renderSpendChart(data.subaccounts);
+    setLastUpdated();
     hideLoading();
+}
+
+function updateSortIndicators(activeKey) {
+    document.querySelectorAll('#subaccountsTable thead th').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.dataset.sort === activeKey) {
+            th.classList.add(currentSort.asc ? 'sort-asc' : 'sort-desc');
+        }
+    });
 }
 
 function renderTable(subaccounts) {
@@ -74,16 +87,26 @@ function renderTable(subaccounts) {
 
     // Sorting
     document.querySelectorAll('#subaccountsTable thead th').forEach(th => {
-        th.addEventListener('click', () => {
+        th.onclick = () => {
             const key = th.dataset.sort;
             if (!key) return;
+            if (currentSort.key === key) {
+                currentSort.asc = !currentSort.asc;
+            } else {
+                currentSort.key = key;
+                currentSort.asc = false;
+            }
             const sorted = [...subaccounts].sort((a, b) => {
-                if (typeof a[key] === 'string') return a[key].localeCompare(b[key]);
-                return b[key] - a[key];
+                const av = a[key], bv = b[key];
+                let cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+                return currentSort.asc ? cmp : -cmp;
             });
+            updateSortIndicators(key);
             renderTable(sorted);
-        });
+        };
     });
+
+    updateSortIndicators(currentSort.key);
 }
 
 function renderSpendChart(subaccounts) {
@@ -106,3 +129,12 @@ function renderSpendChart(subaccounts) {
         }
     });
 }
+
+document.getElementById('exportSubaccountsCSV')?.addEventListener('click', () => {
+    const headers = ['Account Name', 'SID', 'Total Messages', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate', 'Spend'];
+    const rows = currentSubaccounts.map(a => [
+        a.friendly_name, a.sid, a.total_messages, a.delivered, a.read, a.failed,
+        a.delivery_rate + '%', a.read_rate + '%', a.error_rate + '%', a.spend.toFixed(2)
+    ]);
+    exportCSV('subaccounts_export.csv', headers, rows);
+});

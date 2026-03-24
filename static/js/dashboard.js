@@ -62,6 +62,7 @@ function renderPage(data) {
     if (data.limit_reached) {
         showLimitWarning();
     }
+    setLastUpdated();
     hideLoading();
 }
 

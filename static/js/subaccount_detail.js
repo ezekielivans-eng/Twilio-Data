@@ -66,6 +66,7 @@ function renderPage(data) {
             document.querySelector('.container').insertBefore(warn, document.getElementById('loading').nextSibling);
         }
     }
+    setLastUpdated();
     hideLoading();
 }
 

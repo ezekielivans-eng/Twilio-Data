@@ -246,9 +246,14 @@ def api_dashboard():
             filtered_data.append({**entry, "messages": msgs})
         sub_summary = build_subaccount_summary(filtered_data)
 
-        # Top templates
+        # Top templates by delivery rate
         template_map = cached_templates()
-        template_stats = aggregate_by_template(all_messages, template_map)[:10]
+        all_template_stats = aggregate_by_template(all_messages, template_map)
+        template_stats = sorted(
+            [t for t in all_template_stats if t["total"] > 0],
+            key=lambda t: t["delivery_rate"],
+            reverse=True,
+        )[:10]
 
         result = {
             "status_summary": status_summary,
@@ -411,10 +416,13 @@ def api_billing():
         # Calculate daily average and projection
         days_in_range = (date_to - date_from).days or 1
         daily_avg = billing["total_spend"] / days_in_range
-        projected_monthly = daily_avg * 30
 
         billing["daily_average"] = round(daily_avg, 4)
-        billing["projected_monthly"] = round(projected_monthly, 2)
+        # Only project monthly spend if we have at least 3 days of data
+        if days_in_range >= 3:
+            billing["projected_monthly"] = round(daily_avg * 30, 2)
+        else:
+            billing["projected_monthly"] = None
         billing["date_from"] = date_from.strftime("%Y-%m-%d")
         billing["date_to"] = date_to.strftime("%Y-%m-%d")
         billing["daily"] = aggregate_daily_spend(all_data)

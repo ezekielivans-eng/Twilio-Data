@@ -14,7 +14,7 @@
         <div class="kpi-value" id="kpiDailyAvg">-</div>
     </div>
     <div class="kpi-card">
-        <div class="kpi-label">Projected Monthly</div>
+        <div class="kpi-label" title="Based on daily average over selected date range">Projected Monthly</div>
         <div class="kpi-value" id="kpiProjected">-</div>
     </div>
 </div>
@@ -36,6 +36,10 @@
 </div>
 
 <div class="table-container">
+    <div class="table-header">
+        <h3>Billing by Account</h3>
+        <button id="exportBillingCSV" class="btn btn-secondary btn-sm">Export CSV</button>
+    </div>
     <table>
         <thead>
             <tr>

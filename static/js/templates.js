@@ -45,6 +45,7 @@ async function loadTemplates() {
         allTemplates = data.templates;
         currentPage = 0;
         applyClientFilters();
+        setLastUpdated();
         hideLoading();
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
@@ -229,12 +230,33 @@ function renderTable(pageTemplates, allFiltered) {
                 let cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
                 return currentSort.asc ? cmp : -cmp;
             });
+            updateSortIndicators(key);
             renderFromFiltered();
         };
+    });
+
+    updateSortIndicators(currentSort.key);
+}
+
+function updateSortIndicators(activeKey) {
+    document.querySelectorAll('#templatesTable thead th').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.dataset.sort === activeKey) {
+            th.classList.add(currentSort.asc ? 'sort-asc' : 'sort-desc');
+        }
     });
 }
 
 let ratesChartInstance = null;
+
+document.getElementById('exportTemplatesCSV')?.addEventListener('click', () => {
+    const headers = ['Template Name', 'Type', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const rows = lastFiltered.map(t => [
+        t.template_name, t.template_type, t.total, t.delivered, t.read, t.failed,
+        t.delivery_rate + '%', t.read_rate + '%', t.error_rate + '%'
+    ]);
+    exportCSV('templates_export.csv', headers, rows);
+});
 
 function renderRatesChart(templates) {
     if (ratesChartInstance) ratesChartInstance.destroy();
