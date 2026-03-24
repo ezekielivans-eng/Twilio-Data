@@ -28,6 +28,7 @@ from data_aggregator import (
     aggregate_by_date,
     aggregate_by_template,
     aggregate_daily_spend,
+    aggregate_errors,
     aggregate_message_statuses,
     build_subaccount_summary,
 )
@@ -58,7 +59,7 @@ def _log_request(response):
     return response
 
 
-MAX_DATE_RANGE_DAYS = 30
+MAX_DATE_RANGE_DAYS = 90
 
 
 def parse_date_params():
@@ -75,7 +76,7 @@ def parse_date_params():
         if date_from:
             date_from = datetime.strptime(date_from, "%Y-%m-%d")
         else:
-            date_from = date_to - timedelta(days=config.DATE_RANGE_DAYS)
+            date_from = date_to  # default to single day
     except ValueError:
         raise ValidationError(f"Invalid date_from format: expected YYYY-MM-DD, got '{date_from}'")
     if date_from > date_to:
@@ -261,6 +262,11 @@ def templates_page():
 @app.route("/billing")
 def billing_page():
     return render_template("billing.html")
+
+
+@app.route("/errors")
+def errors_page():
+    return render_template("errors.html")
 
 
 # ── API Routes ───────────────────────────────────────────────
@@ -504,6 +510,33 @@ def api_billing():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.exception("api_billing failed")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route("/api/errors")
+def api_errors():
+    try:
+        date_from, date_to = parse_date_params()
+        account_filter = request.args.get("account_sid", "").strip()
+        exclude_accounts = request.args.get("exclude_accounts", "").strip()
+        all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
+        all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
+
+        all_messages = []
+        for entry in all_data:
+            all_messages.extend(entry["messages"])
+
+        error_data = aggregate_errors(all_messages)
+        error_data["date_from"] = date_from.strftime("%Y-%m-%d")
+        error_data["date_to"] = date_to.strftime("%Y-%m-%d")
+        if fetch_errors:
+            error_data["warnings"] = fetch_errors
+            error_data["partial_data"] = True
+        return jsonify(error_data)
+    except ValidationError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.exception("api_errors failed")
         return jsonify({"error": "Internal server error"}), 500
 
 

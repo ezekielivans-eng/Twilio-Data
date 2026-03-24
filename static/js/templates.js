@@ -189,10 +189,8 @@ function renderTable(pageTemplates, allFiltered) {
             <td>${t.total.toLocaleString()}</td>
             <td>${t.delivered.toLocaleString()}</td>
             <td>${t.read.toLocaleString()}</td>
-            <td>${t.failed.toLocaleString()}</td>
             <td><span class="badge badge-success">${t.delivery_rate}%</span></td>
             <td><span class="badge badge-info">${t.read_rate}%</span></td>
-            <td><span class="badge ${t.error_rate > 5 ? 'badge-danger' : 'badge-warning'}">${t.error_rate}%</span></td>
         `;
 
         // Expandable detail row
@@ -200,7 +198,7 @@ function renderTable(pageTemplates, allFiltered) {
         detailTr.className = 'template-detail-row';
         detailTr.style.display = 'none';
         detailTr.innerHTML = `
-            <td colspan="9">
+            <td colspan="7">
                 <div class="template-body-container">
                     <div class="template-body-header">
                         <span class="template-body-label">Template Body</span>
@@ -211,8 +209,6 @@ function renderTable(pageTemplates, allFiltered) {
                         <div class="stat-pill"><span class="stat-label">Total Sent</span><span class="stat-value">${t.total.toLocaleString()}</span></div>
                         <div class="stat-pill stat-success"><span class="stat-label">Delivered</span><span class="stat-value">${t.delivered.toLocaleString()}</span></div>
                         <div class="stat-pill stat-info"><span class="stat-label">Read</span><span class="stat-value">${t.read.toLocaleString()}</span></div>
-                        <div class="stat-pill stat-danger"><span class="stat-label">Failed</span><span class="stat-value">${t.failed.toLocaleString()}</span></div>
-                        <div class="stat-pill"><span class="stat-label">Undelivered</span><span class="stat-value">${t.undelivered.toLocaleString()}</span></div>
                     </div>
                 </div>
             </td>
@@ -270,10 +266,10 @@ function updateSortIndicators(activeKey) {
 let ratesChartInstance = null;
 
 document.getElementById('exportTemplatesCSV')?.addEventListener('click', () => {
-    const headers = ['Template Name', 'Sub Account', 'Body', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const headers = ['Template Name', 'Sub Account', 'Body', 'Total', 'Delivered', 'Read', 'Delivery Rate', 'Read Rate'];
     const rows = lastFiltered.map(t => [
-        t.template_name, t.accounts || '', t.body || '', t.total, t.delivered, t.read, t.failed,
-        t.delivery_rate + '%', t.read_rate + '%', t.error_rate + '%'
+        t.template_name, t.accounts || '', t.body || '', t.total, t.delivered, t.read,
+        t.delivery_rate + '%', t.read_rate + '%'
     ]);
     exportCSV(csvFilename('templates'), headers, rows);
 });
@@ -287,8 +283,7 @@ function renderRatesChart(templates) {
             labels: top.map(t => t.template_name.substring(0, 25)),
             datasets: [
                 { label: 'Delivery Rate', data: top.map(t => t.delivery_rate), backgroundColor: '#25d366' },
-                { label: 'Read Rate', data: top.map(t => t.read_rate), backgroundColor: '#0dcaf0' },
-                { label: 'Error Rate', data: top.map(t => t.error_rate), backgroundColor: '#dc3545' }
+                { label: 'Read Rate', data: top.map(t => t.read_rate), backgroundColor: '#0dcaf0' }
             ]
         },
         options: {

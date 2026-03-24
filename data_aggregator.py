@@ -51,12 +51,8 @@ def aggregate_by_date(messages):
             status: [daily[d].get(status, 0) for d in sorted_days]
             for status in [
                 "sent",
-                "sending",
                 "delivered",
                 "read",
-                "failed",
-                "undelivered",
-                "queued",
             ]
         },
         "totals": [daily[d].get("total", 0) for d in sorted_days],
@@ -256,3 +252,39 @@ def build_subaccount_summary(subaccounts_data):
         )
     summary.sort(key=lambda x: x["total_messages"], reverse=True)
     return summary
+
+
+def aggregate_errors(messages):
+    """Group failed/undelivered messages by error_code."""
+    error_msgs = [m for m in messages if m.get("status") in ("failed", "undelivered")]
+    failed_count = sum(1 for m in error_msgs if m["status"] == "failed")
+    undelivered_count = sum(1 for m in error_msgs if m["status"] == "undelivered")
+
+    by_code = defaultdict(list)
+    for m in error_msgs:
+        code = m.get("error_code") or "unknown"
+        by_code[code].append(m)
+
+    total = len(error_msgs)
+    results = []
+    for code, msgs in by_code.items():
+        count = len(msgs)
+        results.append({
+            "error_code": code,
+            "count": count,
+            "pct": round(count / total * 100, 1) if total else 0,
+            "statuses": {
+                "failed": sum(1 for m in msgs if m["status"] == "failed"),
+                "undelivered": sum(1 for m in msgs if m["status"] == "undelivered"),
+            },
+        })
+
+    results.sort(key=lambda x: x["count"], reverse=True)
+    return {
+        "errors": results,
+        "summary": {
+            "total": total,
+            "failed": failed_count,
+            "undelivered": undelivered_count,
+        },
+    }
