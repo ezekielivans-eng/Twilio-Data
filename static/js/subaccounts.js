@@ -30,6 +30,7 @@ async function loadSubaccounts() {
         const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
         const res = await fetchWithDedup(`/api/subaccounts?${filterParams}`, { signal: controller.signal });
         clearTimeout(timeoutId);
+        if (res.status === 429) { showError('Too many requests \u2014 please wait a moment and try again.'); return; }
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || `Server error (${res.status})`);
