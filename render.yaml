@@ -3,7 +3,7 @@ services:
     name: twilio-whatsapp-analytics
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60 --preload --max-requests 1000 --max-requests-jitter 100
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120 --max-requests 1000 --max-requests-jitter 100
     healthCheckPath: /healthz
     envVars:
       - key: TWILIO_ACCOUNT_SID
