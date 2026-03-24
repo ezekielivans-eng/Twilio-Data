@@ -467,6 +467,40 @@ th.sort-desc::after { content: " \2193"; opacity: 0.7; }
     font-size: 0.8rem;
 }
 
+/* Account multi-select dropdown */
+.account-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 100;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    min-width: 240px;
+    max-height: 350px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.account-checkbox-list {
+    overflow-y: auto;
+    max-height: 300px;
+    padding: 0.25rem 0;
+}
+.account-checkbox-list label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.82rem;
+    color: #333;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.account-checkbox-list label:hover { background: #f0faf4; }
+.account-checkbox-list input[type="checkbox"] { accent-color: #25d366; cursor: pointer; }
+
 /* Auto-refresh */
 .auto-refresh-label {
     display: flex;

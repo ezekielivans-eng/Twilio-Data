@@ -26,12 +26,20 @@
         <div class="date-picker">
             <label>From: <input type="date" id="dateFrom"></label>
             <label>To: <input type="date" id="dateTo"></label>
-            <label>Account:
-                <select id="globalAccountFilter" class="filter-select" style="min-width:160px">
-                    <option value="">All Accounts</option>
-                    <option value="__exclude_main__">All Except Main</option>
-                </select>
-            </label>
+            <div class="account-filter-wrapper" style="position:relative;">
+                <label style="font-size:0.85rem;font-weight:600;color:#555;">Account:</label>
+                <button type="button" id="accountFilterBtn" class="filter-select" style="min-width:180px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+                    <span id="accountFilterLabel">All Accounts</span>
+                    <span style="font-size:0.6rem;margin-left:0.5rem;">&#9660;</span>
+                </button>
+                <div id="accountFilterDropdown" class="account-dropdown" style="display:none;">
+                    <div style="padding:0.5rem;border-bottom:1px solid #eee;">
+                        <button type="button" id="acctSelectAll" class="btn btn-sm" style="margin-right:0.25rem;">All</button>
+                        <button type="button" id="acctSelectNone" class="btn btn-sm">None</button>
+                    </div>
+                    <div id="accountCheckboxes" class="account-checkbox-list"></div>
+                </div>
+            </div>
             <button id="applyDates" class="btn btn-primary">Apply</button>
             <button id="refreshCache" class="btn btn-secondary">Refresh Data</button>
             <label class="auto-refresh-label">
@@ -88,45 +96,84 @@
                 window.location.reload();
             });
 
-            // Populate account filter dropdown
-            const globalAcctFilter = document.getElementById('globalAccountFilter');
+            // Populate account filter multi-select
+            const acctFilterBtn = document.getElementById('accountFilterBtn');
+            const acctFilterDropdown = document.getElementById('accountFilterDropdown');
+            const acctCheckboxes = document.getElementById('accountCheckboxes');
+            const acctFilterLabel = document.getElementById('accountFilterLabel');
+            let allAccounts = []; // [{sid, friendly_name}]
             let mainAccountSid = '';
+
+            // Toggle dropdown
+            acctFilterBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                acctFilterDropdown.style.display = acctFilterDropdown.style.display === 'none' ? 'flex' : 'none';
+            });
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.account-filter-wrapper')) acctFilterDropdown.style.display = 'none';
+            });
+
+            function updateAccountLabel() {
+                const checked = [...acctCheckboxes.querySelectorAll('input:checked')].map(cb => cb.value);
+                const total = allAccounts.length;
+                if (checked.length === 0) {
+                    acctFilterLabel.textContent = 'None Selected';
+                } else if (checked.length === total) {
+                    acctFilterLabel.textContent = 'All Accounts';
+                } else if (total - checked.length <= 2) {
+                    const unchecked = allAccounts.filter(a => !checked.includes(a.sid)).map(a => a.friendly_name);
+                    acctFilterLabel.textContent = 'All except ' + unchecked.join(', ');
+                } else {
+                    acctFilterLabel.textContent = checked.length + ' of ' + total + ' accounts';
+                }
+            }
+
+            function onAccountFilterChange() {
+                updateAccountLabel();
+                sessionStorage.clear();
+                if (window._onAccountFilterChange) window._onAccountFilterChange();
+            }
+
             const accountsReady = fetch('/api/accounts').then(r => r.json()).then(data => {
                 mainAccountSid = data.main_sid || '';
-                (data.accounts || []).forEach(a => {
-                    const opt = document.createElement('option');
-                    opt.value = a.sid;
-                    opt.textContent = a.friendly_name;
-                    globalAcctFilter.appendChild(opt);
+                allAccounts = data.accounts || [];
+                const urlExclude = new Set((params.get('exclude_accounts') || '').split(',').filter(Boolean));
+
+                allAccounts.forEach(a => {
+                    const label = document.createElement('label');
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.value = a.sid;
+                    cb.checked = !urlExclude.has(a.sid);
+                    cb.addEventListener('change', debounce(onAccountFilterChange, 400));
+                    label.appendChild(cb);
+                    label.appendChild(document.createTextNode(' ' + a.friendly_name));
+                    acctCheckboxes.appendChild(label);
                 });
-                // Restore account filter from URL, default to "All Accounts"
-                const urlAcct = params.get('account_sid') || '';
-                const urlExclude = params.get('exclude_accounts') || '';
-                if (urlAcct) {
-                    globalAcctFilter.value = urlAcct;
-                } else if (urlExclude) {
-                    globalAcctFilter.value = '__exclude_main__';
-                } else {
-                    globalAcctFilter.value = '';
-                }
+                updateAccountLabel();
             }).catch(() => {});
+
+            // Select All / None buttons
+            document.getElementById('acctSelectAll').addEventListener('click', () => {
+                acctCheckboxes.querySelectorAll('input').forEach(cb => cb.checked = true);
+                onAccountFilterChange();
+            });
+            document.getElementById('acctSelectNone').addEventListener('click', () => {
+                acctCheckboxes.querySelectorAll('input').forEach(cb => cb.checked = false);
+                onAccountFilterChange();
+            });
 
             // Pages can await this before their initial load
             window.accountsReady = accountsReady;
 
-            // Re-fetch data when account filter changes
-            globalAcctFilter.addEventListener('change', () => {
-                sessionStorage.clear();
-                if (window._onAccountFilterChange) window._onAccountFilterChange();
-            });
-
             // Expose helper for JS files
             window.getAccountFilterParam = () => {
-                const val = globalAcctFilter.value;
-                if (val === '__exclude_main__' && mainAccountSid) {
-                    return `&exclude_accounts=${mainAccountSid}`;
-                }
-                return val ? `&account_sid=${val}` : '';
+                const checked = [...acctCheckboxes.querySelectorAll('input:checked')].map(cb => cb.value);
+                const total = allAccounts.length;
+                if (checked.length === 0) return '&exclude_accounts=__all__';
+                if (checked.length === total) return '';
+                const excluded = allAccounts.filter(a => !checked.includes(a.sid)).map(a => a.sid);
+                return '&exclude_accounts=' + excluded.join(',');
             };
             window.getDateParams = () => `date_from=${dateFrom.value}&date_to=${dateTo.value}`;
             window.csvFilename = (base) => `${base}_${dateFrom.value}_${dateTo.value}.csv`;
@@ -199,14 +246,11 @@
                 if (status) url.searchParams.set('status', status);
                 else url.searchParams.delete('status');
                 // Account
-                const acctVal = globalAcctFilter.value;
                 url.searchParams.delete('account_sid');
                 url.searchParams.delete('exclude_accounts');
-                if (acctVal === '__exclude_main__' && mainAccountSid) {
-                    url.searchParams.set('exclude_accounts', mainAccountSid);
-                } else if (acctVal && acctVal !== '__exclude_main__') {
-                    url.searchParams.set('account_sid', acctVal);
-                }
+                const excludeParam = getAccountFilterParam();
+                const match = excludeParam.match(/exclude_accounts=(.+)/);
+                if (match) url.searchParams.set('exclude_accounts', match[1]);
                 history.replaceState(null, '', url);
             };
 
