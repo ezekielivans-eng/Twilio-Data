@@ -136,13 +136,12 @@
                 if (window._onAccountFilterChange) window._onAccountFilterChange();
             }
 
-            // One shared debounced handler for all account checkboxes
-            const debouncedAccountChange = debounce(onAccountFilterChange, 400);
-
             const accountsReady = fetch('/api/accounts').then(r => r.json()).then(data => {
                 mainAccountSid = data.main_sid || '';
                 allAccounts = data.accounts || [];
                 const urlExclude = new Set((params.get('exclude_accounts') || '').split(',').filter(Boolean));
+                // One shared debounced handler for all account checkboxes
+                const debouncedAccountChange = debounce(onAccountFilterChange, 400);
 
                 allAccounts.forEach(a => {
                     const label = document.createElement('label');
