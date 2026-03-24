@@ -45,6 +45,7 @@ async function loadErrors() {
 const debouncedLoadErrors = debounce(loadErrors, 300);
 document.getElementById('directionFilter')?.addEventListener('change', () => {
     if (window.updateURLFilters) updateURLFilters();
+    showLoading();
     debouncedLoadErrors();
 });
 
@@ -114,15 +115,19 @@ function renderErrorCodesChart(errors) {
 
 function renderTable(errors) {
     const tbody = document.getElementById('errorsBody');
-    tbody.innerHTML = errors.map(e => `
-        <tr>
-            <td><strong>${escapeHtml(String(e.error_code))}</strong></td>
+    tbody.innerHTML = errors.map(e => {
+        const code = String(e.error_code);
+        const codeLink = code !== 'unknown'
+            ? `<a href="https://www.twilio.com/docs/api/errors/${encodeURIComponent(code)}" target="_blank" rel="noopener" title="View Twilio docs for error ${escapeHtml(code)}" style="color:inherit;text-decoration:underline dotted;">${escapeHtml(code)}</a>`
+            : escapeHtml(code);
+        return `<tr>
+            <td><strong>${codeLink}</strong></td>
             <td>${e.count.toLocaleString()}</td>
             <td>${e.pct}%</td>
             <td>${e.statuses.failed.toLocaleString()}</td>
             <td>${e.statuses.undelivered.toLocaleString()}</td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
 
     // Sorting
     document.querySelectorAll('#errorsTable thead th').forEach(th => {

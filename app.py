@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 
 from flask import Flask, g, jsonify, render_template, request
 from flask_compress import Compress
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 import config
 
@@ -42,6 +44,7 @@ from twilio_client import (
 app = Flask(__name__)
 app.secret_key = config.FLASK_SECRET_KEY
 Compress(app)
+limiter = Limiter(get_remote_address, app=app, default_limits=["60 per minute"])
 
 cache = TTLCache(ttl_seconds=config.CACHE_TTL_SECONDS)
 
@@ -185,7 +188,7 @@ def get_all_subaccount_data(date_from, date_to):
     return results, errors
 
 
-ALL_STATUSES = {"delivered", "read", "sent", "failed", "undelivered", "queued", "sending"}
+ALL_STATUSES = {"accepted", "delivered", "read", "sent", "failed", "undelivered", "queued", "sending"}
 
 
 def apply_message_filters(messages, direction_filter, status_values):
@@ -221,12 +224,42 @@ def get_account_list():
     return account_list
 
 
+def _validate_sid_list(raw):
+    """Validate comma-separated SIDs, returning only valid ones."""
+    valid = []
+    for sid in raw.split(","):
+        sid = sid.strip()
+        if sid and _SID_RE.match(sid):
+            valid.append(sid)
+    return valid
+
+
+def _parse_account_filters():
+    """Parse and validate account_sid / exclude_accounts from request args."""
+    account_filter = request.args.get("account_sid", "").strip()
+    exclude_accounts = request.args.get("exclude_accounts", "").strip()
+    if account_filter:
+        account_filter = validate_account_sid(account_filter)
+    return account_filter, exclude_accounts
+
+
+def _get_common_params():
+    """Parse date, direction, status, and account filters from request args."""
+    date_from, date_to = parse_date_params()
+    direction_filter = request.args.get("direction", "")
+    status_values = parse_status_filter()
+    account_filter, exclude_accounts = _parse_account_filters()
+    all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
+    all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
+    return date_from, date_to, direction_filter, status_values, all_data, fetch_errors
+
+
 def filter_data_by_accounts(all_data, account_filter, exclude_accounts):
     """Filter all_data by account_sid or exclude_accounts."""
     if account_filter:
         all_data = [e for e in all_data if e["sid"] == account_filter]
     elif exclude_accounts:
-        exclude_set = set(exclude_accounts.split(","))
+        exclude_set = set(_validate_sid_list(exclude_accounts))
         all_data = [e for e in all_data if e["sid"] not in exclude_set]
     return all_data
 
@@ -275,13 +308,7 @@ def errors_page():
 @app.route("/api/dashboard")
 def api_dashboard():
     try:
-        date_from, date_to = parse_date_params()
-        direction_filter = request.args.get("direction", "")
-        status_values = parse_status_filter()
-        account_filter = request.args.get("account_sid", "").strip()
-        exclude_accounts = request.args.get("exclude_accounts", "").strip()
-        all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
-        all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
+        date_from, date_to, direction_filter, status_values, all_data, fetch_errors = _get_common_params()
 
         all_messages = []
         any_limit_reached = False
@@ -334,13 +361,7 @@ def api_dashboard():
 @app.route("/api/subaccounts")
 def api_subaccounts():
     try:
-        date_from, date_to = parse_date_params()
-        direction_filter = request.args.get("direction", "")
-        status_values = parse_status_filter()
-        account_filter = request.args.get("account_sid", "").strip()
-        exclude_accounts = request.args.get("exclude_accounts", "").strip()
-        all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
-        all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
+        date_from, date_to, direction_filter, status_values, all_data, fetch_errors = _get_common_params()
 
         # Apply filters to messages within each account
         filtered_data = []
@@ -420,14 +441,7 @@ def api_subaccount_detail(sid):
 @app.route("/api/templates")
 def api_templates():
     try:
-        date_from, date_to = parse_date_params()
-        account_filter = request.args.get("account_sid", "").strip()
-        exclude_accounts = request.args.get("exclude_accounts", "").strip()
-        direction_filter = request.args.get("direction", "")
-        status_values = parse_status_filter()
-
-        all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
-        all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
+        date_from, date_to, direction_filter, status_values, all_data, fetch_errors = _get_common_params()
         all_messages = []
         for entry in all_data:
             # Tag each message with its account info for per-template tracking
@@ -474,11 +488,7 @@ def api_templates():
 @app.route("/api/billing")
 def api_billing():
     try:
-        date_from, date_to = parse_date_params()
-        account_filter = request.args.get("account_sid", "").strip()
-        exclude_accounts = request.args.get("exclude_accounts", "").strip()
-        all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
-        all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
+        date_from, date_to, _dir, _status, all_data, fetch_errors = _get_common_params()
 
         usage_by_account = {}
         account_names = {}
@@ -516,15 +526,17 @@ def api_billing():
 @app.route("/api/errors")
 def api_errors():
     try:
-        date_from, date_to = parse_date_params()
-        account_filter = request.args.get("account_sid", "").strip()
-        exclude_accounts = request.args.get("exclude_accounts", "").strip()
-        all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
-        all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
+        date_from, date_to, direction_filter, _status, all_data, fetch_errors = _get_common_params()
 
         all_messages = []
         for entry in all_data:
             all_messages.extend(entry["messages"])
+
+        # Apply direction filter (status filter not used — errors page shows only failed/undelivered)
+        if direction_filter == "outbound":
+            all_messages = [m for m in all_messages if m.get("direction", "").startswith("outbound")]
+        elif direction_filter == "inbound":
+            all_messages = [m for m in all_messages if m.get("direction", "") == "inbound"]
 
         error_data = aggregate_errors(all_messages)
         error_data["date_from"] = date_from.strftime("%Y-%m-%d")

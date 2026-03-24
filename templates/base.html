@@ -24,8 +24,8 @@
 
     <div class="container">
         <div class="date-picker">
-            <label>From: <input type="date" id="dateFrom"></label>
-            <label>To: <input type="date" id="dateTo"></label>
+            <label>From (UTC): <input type="date" id="dateFrom"></label>
+            <label>To (UTC): <input type="date" id="dateTo"></label>
             <div class="account-filter-wrapper" style="position:relative;">
                 <label style="font-size:0.85rem;font-weight:600;color:#555;">Account:</label>
                 <button type="button" id="accountFilterBtn" class="filter-select" style="min-width:180px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
@@ -91,6 +91,7 @@
             });
 
             document.getElementById('refreshCache').addEventListener('click', async () => {
+                if (!confirm('Clear cached data and reload from Twilio?')) return;
                 sessionStorage.clear();
                 await fetch('/api/cache/clear', {method: 'POST'});
                 window.location.reload();
