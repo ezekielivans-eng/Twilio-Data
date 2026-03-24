@@ -153,7 +153,7 @@ def parse_status_filter():
     raw = request.args.get("status", "")
     if not raw:
         return ALL_STATUSES  # no filter = all
-    return set(raw.split(","))
+    return set(raw.split(",")) & ALL_STATUSES
 
 
 def get_account_list():

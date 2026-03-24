@@ -66,6 +66,50 @@
         <canvas id="templatesChart"></canvas>
     </div>
 </div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h3>Top Sub-Accounts</h3>
+        <button id="exportSubaccountsCSV" class="btn btn-secondary btn-sm">Export CSV</button>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Account Name</th>
+                <th>Total Messages</th>
+                <th>Delivered</th>
+                <th>Read</th>
+                <th>Failed</th>
+                <th>Delivery Rate</th>
+                <th>Read Rate</th>
+                <th>Error Rate</th>
+            </tr>
+        </thead>
+        <tbody id="topSubaccountsBody"></tbody>
+    </table>
+</div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h3>Top Templates</h3>
+        <button id="exportTemplatesCSV" class="btn btn-secondary btn-sm">Export CSV</button>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Template Name</th>
+                <th>Total</th>
+                <th>Delivered</th>
+                <th>Read</th>
+                <th>Failed</th>
+                <th>Delivery Rate</th>
+                <th>Read Rate</th>
+                <th>Error Rate</th>
+            </tr>
+        </thead>
+        <tbody id="topTemplatesBody"></tbody>
+    </table>
+</div>
 {% endblock %}
 
 {% block scripts %}

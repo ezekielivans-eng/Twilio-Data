@@ -2,6 +2,7 @@
 {% block title %}Sub-Account Detail - Twilio WhatsApp Analytics{% endblock %}
 
 {% block content %}
+<a href="/subaccounts" class="back-link">&larr; Back to Sub-Accounts</a>
 <h1 id="accountTitle">Sub-Account: {{ account_sid }}</h1>
 
 <div class="template-filters">
@@ -62,7 +63,10 @@
 </div>
 
 <div class="table-container">
-    <h3>Templates Used</h3>
+    <div class="table-header">
+        <h3>Templates Used <span class="table-hint">(click a row to view body text)</span></h3>
+        <button id="exportDetailCSV" class="btn btn-secondary btn-sm">Export CSV</button>
+    </div>
     <table>
         <thead>
             <tr>

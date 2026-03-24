@@ -2,6 +2,8 @@ let statusChartInstance = null;
 let timelineChartInstance = null;
 let subaccountsChartInstance = null;
 let templatesChartInstance = null;
+let currentTopSubaccounts = [];
+let currentTopTemplates = [];
 
 function getFilterParams() {
     const dir = document.getElementById('directionFilter')?.value || '';
@@ -59,6 +61,10 @@ function renderPage(data) {
     renderTimelineChart(data.daily);
     renderSubaccountsChart(data.top_subaccounts);
     renderTemplatesChart(data.top_templates);
+    renderTopSubaccountsTable(data.top_subaccounts);
+    renderTopTemplatesTable(data.top_templates);
+    currentTopSubaccounts = data.top_subaccounts;
+    currentTopTemplates = data.top_templates;
     if (data.limit_reached) {
         showLimitWarning();
     }
@@ -166,3 +172,51 @@ function renderTemplatesChart(templates) {
         }
     });
 }
+
+function renderTopSubaccountsTable(subaccounts) {
+    document.getElementById('topSubaccountsBody').innerHTML = subaccounts.map(a => `
+        <tr class="clickable" onclick="window.location='/subaccounts/${encodeURIComponent(a.sid)}?${getDateParams()}'">
+            <td><strong>${escapeHtml(a.friendly_name)}</strong></td>
+            <td>${a.total_messages.toLocaleString()}</td>
+            <td>${a.delivered.toLocaleString()}</td>
+            <td>${a.read.toLocaleString()}</td>
+            <td>${a.failed.toLocaleString()}</td>
+            <td><span class="badge badge-success">${a.delivery_rate}%</span></td>
+            <td><span class="badge badge-info">${a.read_rate}%</span></td>
+            <td><span class="badge ${a.error_rate > 5 ? 'badge-danger' : 'badge-warning'}">${a.error_rate}%</span></td>
+        </tr>
+    `).join('');
+}
+
+function renderTopTemplatesTable(templates) {
+    document.getElementById('topTemplatesBody').innerHTML = templates.map(t => `
+        <tr>
+            <td>${escapeHtml(t.template_name)}</td>
+            <td>${t.total.toLocaleString()}</td>
+            <td>${t.delivered.toLocaleString()}</td>
+            <td>${t.read.toLocaleString()}</td>
+            <td>${t.failed.toLocaleString()}</td>
+            <td><span class="badge badge-success">${t.delivery_rate}%</span></td>
+            <td><span class="badge badge-info">${t.read_rate}%</span></td>
+            <td><span class="badge ${t.error_rate > 5 ? 'badge-danger' : 'badge-warning'}">${t.error_rate}%</span></td>
+        </tr>
+    `).join('');
+}
+
+document.getElementById('exportSubaccountsCSV')?.addEventListener('click', () => {
+    const headers = ['Account Name', 'Total Messages', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const rows = currentTopSubaccounts.map(a => [
+        a.friendly_name, a.total_messages, a.delivered, a.read, a.failed,
+        a.delivery_rate + '%', a.read_rate + '%', a.error_rate + '%'
+    ]);
+    exportCSV('dashboard_subaccounts.csv', headers, rows);
+});
+
+document.getElementById('exportTemplatesCSV')?.addEventListener('click', () => {
+    const headers = ['Template Name', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const rows = currentTopTemplates.map(t => [
+        t.template_name, t.total, t.delivered, t.read, t.failed,
+        t.delivery_rate + '%', t.read_rate + '%', t.error_rate + '%'
+    ]);
+    exportCSV('dashboard_templates.csv', headers, rows);
+});

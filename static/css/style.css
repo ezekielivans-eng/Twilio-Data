@@ -114,7 +114,7 @@ body {
 /* Charts */
 .charts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1.5rem;
     margin-bottom: 1.5rem;
 }
@@ -465,4 +465,35 @@ th.sort-desc::after { content: " \2193"; opacity: 0.7; }
 .btn-sm {
     padding: 0.3rem 0.75rem;
     font-size: 0.8rem;
+}
+
+/* Back link */
+.back-link {
+    display: inline-block;
+    color: #25d366;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+.back-link:hover { color: #1da851; text-decoration: underline; }
+
+/* Small screens */
+@media (max-width: 576px) {
+    .container { padding: 0.75rem; }
+    .navbar { padding: 0.5rem 1rem; }
+    .nav-brand { font-size: 1rem; }
+    .nav-link { padding: 0.4rem 0.6rem; font-size: 0.8rem; }
+    .kpi-cards { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+    .kpi-value { font-size: 1.4rem; }
+    .kpi-label { font-size: 0.7rem; }
+    .date-picker { gap: 0.5rem; padding: 0.75rem; flex-direction: column; align-items: stretch; }
+    .date-picker label { width: 100%; }
+    .date-picker input[type="date"] { width: 100%; }
+    table { font-size: 0.75rem; }
+    thead th { padding: 0.5rem; }
+    tbody td { padding: 0.4rem 0.5rem; }
+    .chart-container { padding: 1rem; }
+    .chart-container h3 { font-size: 0.9rem; }
+    h1 { font-size: 1.3rem; }
 }

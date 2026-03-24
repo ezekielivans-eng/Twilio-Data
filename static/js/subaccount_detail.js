@@ -1,6 +1,7 @@
 let statusChartInstance = null;
 let timelineChartInstance = null;
 let templateChartInstance = null;
+let currentTemplates = [];
 
 function getDetailFilterParams() {
     const dir = document.getElementById('directionFilter')?.value || '';
@@ -57,6 +58,7 @@ function renderPage(data) {
     renderTimelineChart(data.daily);
     renderTemplateChart(data.templates);
     renderTemplatesTable(data.templates);
+    currentTemplates = data.templates;
     if (data.limit_reached) {
         const existing = document.querySelector('.limit-warning');
         if (!existing) {
@@ -140,9 +142,17 @@ function renderTemplateChart(templates) {
 }
 
 function renderTemplatesTable(templates) {
-    document.getElementById('templatesBody').innerHTML = templates.map(t => `
-        <tr>
-            <td>${escapeHtml(t.template_name)}</td>
+    const tbody = document.getElementById('templatesBody');
+    tbody.innerHTML = '';
+
+    templates.forEach((t) => {
+        const tr = document.createElement('tr');
+        tr.className = 'template-row clickable';
+        tr.innerHTML = `
+            <td>
+                <span class="expand-icon">&#9654;</span>
+                ${escapeHtml(t.template_name)}
+            </td>
             <td>${t.total.toLocaleString()}</td>
             <td>${t.delivered.toLocaleString()}</td>
             <td>${t.read.toLocaleString()}</td>
@@ -150,6 +160,47 @@ function renderTemplatesTable(templates) {
             <td><span class="badge badge-success">${t.delivery_rate}%</span></td>
             <td><span class="badge badge-info">${t.read_rate}%</span></td>
             <td><span class="badge ${t.error_rate > 5 ? 'badge-danger' : 'badge-warning'}">${t.error_rate}%</span></td>
-        </tr>
-    `).join('');
+        `;
+
+        const detailTr = document.createElement('tr');
+        detailTr.className = 'template-detail-row';
+        detailTr.style.display = 'none';
+        detailTr.innerHTML = `
+            <td colspan="8">
+                <div class="template-body-container">
+                    <div class="template-body-header">
+                        <span class="template-body-label">Template Body</span>
+                        ${t.template_id ? `<span class="template-sid">${escapeHtml(t.template_id)}</span>` : ''}
+                    </div>
+                    <div class="template-body-text">${escapeHtml(t.body || 'No body text available')}</div>
+                    <div class="template-body-stats">
+                        <div class="stat-pill"><span class="stat-label">Total Sent</span><span class="stat-value">${t.total.toLocaleString()}</span></div>
+                        <div class="stat-pill stat-success"><span class="stat-label">Delivered</span><span class="stat-value">${t.delivered.toLocaleString()}</span></div>
+                        <div class="stat-pill stat-info"><span class="stat-label">Read</span><span class="stat-value">${t.read.toLocaleString()}</span></div>
+                        <div class="stat-pill stat-danger"><span class="stat-label">Failed</span><span class="stat-value">${t.failed.toLocaleString()}</span></div>
+                        <div class="stat-pill"><span class="stat-label">Undelivered</span><span class="stat-value">${(t.undelivered || 0).toLocaleString()}</span></div>
+                    </div>
+                </div>
+            </td>
+        `;
+
+        tr.addEventListener('click', () => {
+            const isOpen = detailTr.style.display !== 'none';
+            detailTr.style.display = isOpen ? 'none' : 'table-row';
+            tr.querySelector('.expand-icon').innerHTML = isOpen ? '&#9654;' : '&#9660;';
+            tr.classList.toggle('expanded', !isOpen);
+        });
+
+        tbody.appendChild(tr);
+        tbody.appendChild(detailTr);
+    });
 }
+
+document.getElementById('exportDetailCSV')?.addEventListener('click', () => {
+    const headers = ['Template Name', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const rows = currentTemplates.map(t => [
+        t.template_name, t.total, t.delivered, t.read, t.failed,
+        t.delivery_rate + '%', t.read_rate + '%', t.error_rate + '%'
+    ]);
+    exportCSV('subaccount_templates.csv', headers, rows);
+});
