@@ -43,6 +43,9 @@ from twilio_client import (
 
 app = Flask(__name__)
 app.secret_key = config.FLASK_SECRET_KEY
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = not config.FLASK_DEBUG
 Compress(app)
 limiter = Limiter(get_remote_address, app=app, default_limits=["60 per minute"])
 
@@ -59,6 +62,8 @@ def _log_request(response):
     if request.path.startswith("/api/"):
         duration = time.time() - getattr(g, "start_time", time.time())
         logger.info("%s %s %s %.2fs", request.method, request.path, response.status_code, duration)
+        if duration > 5:
+            logger.warning("SLOW REQUEST: %s %s took %.2fs", request.method, request.path, duration)
     elif request.path.startswith("/static/"):
         # Cache static assets for 1 week; they're versioned via Flask's url_for
         response.headers["Cache-Control"] = "public, max-age=604800, immutable"
@@ -66,6 +71,20 @@ def _log_request(response):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
+
+
+@app.errorhandler(404)
+def handle_404(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Not found"}), 404
+    return render_template("error.html", error_code=404, error_message="Page not found"), 404
+
+
+@app.errorhandler(500)
+def handle_500(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Internal server error"}), 500
+    return render_template("error.html", error_code=500, error_message="Something went wrong. Please try again later."), 500
 
 
 MAX_DATE_RANGE_DAYS = 90
