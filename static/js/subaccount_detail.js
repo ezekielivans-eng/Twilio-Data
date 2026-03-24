@@ -27,7 +27,7 @@ async function loadDetail() {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
-        const res = await fetch(`/api/subaccounts/${ACCOUNT_SID}?${filterParams}`, { signal: controller.signal });
+        const res = await fetchWithDedup(`/api/subaccounts/${ACCOUNT_SID}?${filterParams}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -42,14 +42,15 @@ async function loadDetail() {
 }
 
 // Filter change handlers
+const debouncedLoad = debounce(loadDetail, 300);
 document.getElementById('directionFilter').addEventListener('change', () => {
     if (window.updateURLFilters) updateURLFilters();
-    loadDetail();
+    debouncedLoad();
 });
 document.getElementById('statusFilter').addEventListener('change', (e) => {
     if (e.target.type === 'checkbox') {
         if (window.updateURLFilters) updateURLFilters();
-        loadDetail();
+        debouncedLoad();
     }
 });
 
@@ -87,7 +88,7 @@ function renderKPIs(s) {
 
 function renderStatusChart(s) {
     if (statusChartInstance) statusChartInstance.destroy();
-    statusChartInstance = new Chart(document.getElementById('statusChart'), {
+    statusChartInstance = safeChart('statusChart', {
         type: 'doughnut',
         data: {
             labels: ['Delivered', 'Read', 'Sent', 'Failed', 'Undelivered', 'Queued'],
@@ -106,7 +107,7 @@ function renderTimelineChart(daily) {
         delivered: '#25d366', read: '#0dcaf0', sent: '#ffc107',
         failed: '#dc3545', undelivered: '#fd7e14', queued: '#6c757d'
     };
-    timelineChartInstance = new Chart(document.getElementById('timelineChart'), {
+    timelineChartInstance = safeChart('timelineChart', {
         type: 'line',
         data: {
             labels: daily.dates,
@@ -129,7 +130,7 @@ function renderTimelineChart(daily) {
 function renderTemplateChart(templates) {
     if (templateChartInstance) templateChartInstance.destroy();
     const top = templates.slice(0, 10);
-    templateChartInstance = new Chart(document.getElementById('templateChart'), {
+    templateChartInstance = safeChart('templateChart', {
         type: 'bar',
         data: {
             labels: top.map(t => t.template_name.substring(0, 30)),

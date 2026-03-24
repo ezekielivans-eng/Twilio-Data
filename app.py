@@ -1,3 +1,5 @@
+import logging
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
@@ -5,6 +7,20 @@ from flask import Flask, jsonify, render_template, request
 from flask_compress import Compress
 
 import config
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+
+class ValidationError(ValueError):
+    """Raised for invalid client input (results in 400 response)."""
+    pass
+
+
+_SID_RE = re.compile(r"^AC[0-9a-fA-F]{32}$")
 from cache import TTLCache
 from data_aggregator import (
     aggregate_billing,
@@ -34,18 +50,34 @@ MAX_DATE_RANGE_DAYS = 30
 def parse_date_params():
     date_to = request.args.get("date_to")
     date_from = request.args.get("date_from")
-    if date_to:
-        date_to = datetime.strptime(date_to, "%Y-%m-%d")
-    else:
-        date_to = datetime.utcnow()
-    if date_from:
-        date_from = datetime.strptime(date_from, "%Y-%m-%d")
-    else:
-        date_from = date_to - timedelta(days=config.DATE_RANGE_DAYS)
+    try:
+        if date_to:
+            date_to = datetime.strptime(date_to, "%Y-%m-%d")
+        else:
+            date_to = datetime.utcnow()
+    except ValueError:
+        raise ValidationError(f"Invalid date_to format: expected YYYY-MM-DD, got '{date_to}'")
+    try:
+        if date_from:
+            date_from = datetime.strptime(date_from, "%Y-%m-%d")
+        else:
+            date_from = date_to - timedelta(days=config.DATE_RANGE_DAYS)
+    except ValueError:
+        raise ValidationError(f"Invalid date_from format: expected YYYY-MM-DD, got '{date_from}'")
+    if date_from > date_to:
+        raise ValidationError("date_from must not be after date_to")
     # Cap to maximum 30 days
     if (date_to - date_from).days > MAX_DATE_RANGE_DAYS:
         date_from = date_to - timedelta(days=MAX_DATE_RANGE_DAYS)
     return date_from, date_to
+
+
+def validate_account_sid(sid):
+    """Validate and clean an account SID parameter."""
+    sid = sid.strip()
+    if not _SID_RE.match(sid):
+        raise ValidationError(f"Invalid account SID format: '{sid}'")
+    return sid
 
 
 def cached_subaccounts():
@@ -120,6 +152,7 @@ def get_all_subaccount_data(date_from, date_to):
                 results.append(future.result(timeout=60))
             except Exception as e:
                 acct = futures[future]
+                logger.warning("Failed to fetch data for %s (%s): %s", acct["friendly_name"], acct["sid"], e)
                 errors.append(f"Failed to fetch data for {acct['friendly_name']}: {e}")
                 results.append(
                     {
@@ -222,8 +255,8 @@ def api_dashboard():
         date_from, date_to = parse_date_params()
         direction_filter = request.args.get("direction", "")
         status_values = parse_status_filter()
-        account_filter = request.args.get("account_sid", "")
-        exclude_accounts = request.args.get("exclude_accounts", "")
+        account_filter = request.args.get("account_sid", "").strip()
+        exclude_accounts = request.args.get("exclude_accounts", "").strip()
         all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
         all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
 
@@ -266,9 +299,13 @@ def api_dashboard():
         }
         if fetch_errors:
             result["warnings"] = fetch_errors
+            result["partial_data"] = True
         return jsonify(result)
+    except ValidationError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("api_dashboard failed")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/subaccounts")
@@ -277,8 +314,8 @@ def api_subaccounts():
         date_from, date_to = parse_date_params()
         direction_filter = request.args.get("direction", "")
         status_values = parse_status_filter()
-        account_filter = request.args.get("account_sid", "")
-        exclude_accounts = request.args.get("exclude_accounts", "")
+        account_filter = request.args.get("account_sid", "").strip()
+        exclude_accounts = request.args.get("exclude_accounts", "").strip()
         all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
         all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
 
@@ -297,14 +334,19 @@ def api_subaccounts():
         }
         if fetch_errors:
             result["warnings"] = fetch_errors
+            result["partial_data"] = True
         return jsonify(result)
+    except ValidationError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("api_subaccounts failed")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/subaccounts/<sid>")
 def api_subaccount_detail(sid):
     try:
+        sid = validate_account_sid(sid)
         date_from, date_to = parse_date_params()
         direction_filter = request.args.get("direction", "")
         status_values = parse_status_filter()
@@ -345,16 +387,19 @@ def api_subaccount_detail(sid):
                 "limit_reached": limit_reached,
             }
         )
+    except ValidationError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("api_subaccount_detail failed for sid=%s", sid)
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/templates")
 def api_templates():
     try:
         date_from, date_to = parse_date_params()
-        account_filter = request.args.get("account_sid", "")
-        exclude_accounts = request.args.get("exclude_accounts", "")
+        account_filter = request.args.get("account_sid", "").strip()
+        exclude_accounts = request.args.get("exclude_accounts", "").strip()
         direction_filter = request.args.get("direction", "")
         status_values = parse_status_filter()
 
@@ -391,17 +436,21 @@ def api_templates():
         }
         if fetch_errors:
             result["warnings"] = fetch_errors
+            result["partial_data"] = True
         return jsonify(result)
+    except ValidationError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("api_templates failed")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/billing")
 def api_billing():
     try:
         date_from, date_to = parse_date_params()
-        account_filter = request.args.get("account_sid", "")
-        exclude_accounts = request.args.get("exclude_accounts", "")
+        account_filter = request.args.get("account_sid", "").strip()
+        exclude_accounts = request.args.get("exclude_accounts", "").strip()
         all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
         all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
 
@@ -429,9 +478,13 @@ def api_billing():
 
         if fetch_errors:
             billing["warnings"] = fetch_errors
+            billing["partial_data"] = True
         return jsonify(billing)
+    except ValidationError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("api_billing failed")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/accounts")
@@ -439,7 +492,8 @@ def api_accounts():
     try:
         return jsonify({"accounts": get_account_list(), "main_sid": config.TWILIO_ACCOUNT_SID})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("api_accounts failed")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/cache/clear", methods=["POST"])

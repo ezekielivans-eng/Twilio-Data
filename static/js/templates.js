@@ -33,7 +33,7 @@ async function loadTemplates() {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
-        const res = await fetch(`/api/templates?${filterParams}`, { signal: controller.signal });
+        const res = await fetchWithDedup(`/api/templates?${filterParams}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -41,7 +41,8 @@ async function loadTemplates() {
         }
         const data = await res.json();
         safeCacheSet(cacheKey, data);
-        if (data.warnings && data.warnings.length) showWarning(data.warnings);
+        if (data.partial_data && data.warnings) showPartialDataWarning(data.warnings);
+        else if (data.warnings && data.warnings.length) showWarning(data.warnings);
         allTemplates = data.templates;
         currentPage = 0;
         applyClientFilters();
@@ -53,14 +54,15 @@ async function loadTemplates() {
 }
 
 // Filter change handlers - server-side filters trigger a fresh load
+const debouncedLoad = debounce(loadTemplates, 300);
 document.getElementById('directionFilter').addEventListener('change', () => {
     if (window.updateURLFilters) updateURLFilters();
-    loadTemplates();
+    debouncedLoad();
 });
 document.getElementById('statusFilter').addEventListener('change', (e) => {
     if (e.target.type === 'checkbox') {
         if (window.updateURLFilters) updateURLFilters();
-        loadTemplates();
+        debouncedLoad();
     }
 });
 document.getElementById('showUnused').addEventListener('change', loadTemplates);
@@ -279,7 +281,7 @@ document.getElementById('exportTemplatesCSV')?.addEventListener('click', () => {
 function renderRatesChart(templates) {
     if (ratesChartInstance) ratesChartInstance.destroy();
     const top = templates.slice(0, 10);
-    ratesChartInstance = new Chart(document.getElementById('ratesChart'), {
+    ratesChartInstance = safeChart('ratesChart', {
         type: 'bar',
         data: {
             labels: top.map(t => t.template_name.substring(0, 25)),
