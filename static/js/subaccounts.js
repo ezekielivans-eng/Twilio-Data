@@ -46,11 +46,13 @@ async function loadSubaccounts() {
 const debouncedLoad = debounce(loadSubaccounts, 300);
 document.getElementById('directionFilter')?.addEventListener('change', () => {
     if (window.updateURLFilters) updateURLFilters();
+    showLoading();
     debouncedLoad();
 });
 document.getElementById('statusFilter')?.addEventListener('change', (e) => {
     if (e.target.type === 'checkbox') {
         if (window.updateURLFilters) updateURLFilters();
+        showLoading();
         debouncedLoad();
     }
 });
