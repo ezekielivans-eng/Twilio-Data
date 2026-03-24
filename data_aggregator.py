@@ -51,6 +51,7 @@ def aggregate_by_date(messages):
             status: [daily[d].get(status, 0) for d in sorted_days]
             for status in [
                 "sent",
+                "sending",
                 "delivered",
                 "read",
                 "failed",

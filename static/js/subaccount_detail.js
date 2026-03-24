@@ -2,6 +2,7 @@ let statusChartInstance = null;
 let timelineChartInstance = null;
 let templateChartInstance = null;
 let currentTemplates = [];
+let currentSort = { key: 'total', asc: false };
 
 function getDetailFilterParams() {
     const dir = document.getElementById('directionFilter')?.value || '';
@@ -71,7 +72,7 @@ function renderPage(data) {
         if (!existing) {
             const warn = document.createElement('div');
             warn.className = 'limit-warning';
-            warn.innerHTML = 'Message fetch limit reached. Totals may be approximate. Try a shorter date range for exact numbers.';
+            warn.innerHTML = 'Message fetch limit reached for ' + escapeHtml(data.account_name) + ' — totals may be approximate. Try a shorter date range for exact numbers.';
             document.querySelector('.container').insertBefore(warn, document.getElementById('loading').nextSibling);
         }
     }
@@ -104,7 +105,7 @@ function renderStatusChart(s) {
 function renderTimelineChart(daily) {
     if (timelineChartInstance) timelineChartInstance.destroy();
     const colors = {
-        delivered: '#25d366', read: '#0dcaf0', sent: '#ffc107',
+        delivered: '#25d366', read: '#0dcaf0', sent: '#ffc107', sending: '#adb5bd',
         failed: '#dc3545', undelivered: '#fd7e14', queued: '#6c757d'
     };
     timelineChartInstance = safeChart('timelineChart', {
@@ -208,6 +209,38 @@ function renderTemplatesTable(templates) {
 
         tbody.appendChild(tr);
         tbody.appendChild(detailTr);
+    });
+
+    // Sorting
+    document.querySelectorAll('#detailTemplatesTable thead th').forEach(th => {
+        th.onclick = () => {
+            const key = th.dataset.sort;
+            if (!key) return;
+            if (currentSort.key === key) {
+                currentSort.asc = !currentSort.asc;
+            } else {
+                currentSort.key = key;
+                currentSort.asc = false;
+            }
+            const sorted = [...templates].sort((a, b) => {
+                const av = a[key], bv = b[key];
+                let cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+                return currentSort.asc ? cmp : -cmp;
+            });
+            updateSortIndicators(key);
+            renderTemplatesTable(sorted);
+        };
+    });
+
+    updateSortIndicators(currentSort.key);
+}
+
+function updateSortIndicators(activeKey) {
+    document.querySelectorAll('#detailTemplatesTable thead th').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.dataset.sort === activeKey) {
+            th.classList.add(currentSort.asc ? 'sort-asc' : 'sort-desc');
+        }
     });
 }
 

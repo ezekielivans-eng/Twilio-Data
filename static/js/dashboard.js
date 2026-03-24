@@ -129,7 +129,7 @@ function renderStatusChart(s) {
 function renderTimelineChart(daily) {
     if (timelineChartInstance) timelineChartInstance.destroy();
     const colors = {
-        delivered: '#25d366', read: '#0dcaf0', sent: '#ffc107',
+        delivered: '#25d366', read: '#0dcaf0', sent: '#ffc107', sending: '#adb5bd',
         failed: '#dc3545', undelivered: '#fd7e14', queued: '#6c757d'
     };
     const datasets = Object.entries(daily.series).map(([status, values]) => ({
