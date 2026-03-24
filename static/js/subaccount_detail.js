@@ -145,7 +145,7 @@ function renderTemplateChart(templates) {
         options: {
             responsive: true,
             scales: { y: { beginAtZero: true, max: 100 } },
-            plugins: { legend: { position: 'bottom' } }
+            plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%'; } } } }
         }
     });
 }

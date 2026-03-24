@@ -47,7 +47,7 @@ def get_subaccounts():
         return []
 
 
-def get_messages(account_sid, date_from, date_to, limit=1000):
+def get_messages(account_sid, date_from, date_to, limit=3000):
     try:
         client = get_subaccount_client(account_sid)
         messages = client.messages.list(

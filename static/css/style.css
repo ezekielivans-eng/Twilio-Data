@@ -164,6 +164,9 @@ thead th {
     border-bottom: 2px solid #e0e0e0;
     cursor: pointer;
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 thead th:hover { background: #e9ecef; }
@@ -450,8 +453,12 @@ th.sort-desc::after { content: " \2193"; opacity: 0.7; }
 /* Last updated */
 .last-updated {
     font-size: 0.8rem;
-    color: #888;
+    color: #155724;
+    font-weight: 600;
     margin-left: 0.5rem;
+    background: #d4edda;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
 }
 
 /* Table header with export button */

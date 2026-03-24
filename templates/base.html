@@ -228,8 +228,9 @@
             };
             window.setLastUpdated = () => {
                 const now = new Date();
+                const utcStr = now.toISOString().substring(11, 19);
                 document.getElementById('lastUpdated').textContent =
-                    'Updated ' + now.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                    'Data as of ' + utcStr + ' UTC';
             };
             // Restore direction filter from URL
             const urlDirection = params.get('direction') || '';
