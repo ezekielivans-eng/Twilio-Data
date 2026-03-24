@@ -18,7 +18,7 @@ async function loadBilling() {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
-        const res = await fetch(`/api/billing?${filterParams}`, { signal: controller.signal });
+        const res = await fetchWithDedup(`/api/billing?${filterParams}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -36,7 +36,8 @@ window._onAccountFilterChange = loadBilling;
 window.accountsReady.then(() => loadBilling());
 
 function renderPage(data) {
-    if (data.warnings && data.warnings.length) showWarning(data.warnings);
+    if (data.partial_data && data.warnings) showPartialDataWarning(data.warnings);
+    else if (data.warnings && data.warnings.length) showWarning(data.warnings);
     renderKPIs(data);
     renderDailyChart(data.daily || []);
     renderPieChart(data.per_account);
@@ -56,7 +57,7 @@ function renderKPIs(data) {
 
 function renderDailyChart(daily) {
     if (dailyChartInstance) dailyChartInstance.destroy();
-    dailyChartInstance = new Chart(document.getElementById('dailySpendChart'), {
+    dailyChartInstance = safeChart('dailySpendChart', {
         type: 'bar',
         data: {
             labels: daily.map(d => d.date),
@@ -82,7 +83,7 @@ function renderPieChart(accounts) {
     if (pieChartInstance) pieChartInstance.destroy();
     const filtered = accounts.filter(a => a.total_spend > 0);
     const colors = ['#25d366','#0dcaf0','#ffc107','#dc3545','#fd7e14','#6c757d','#198754','#6f42c1','#d63384','#0d6efd'];
-    pieChartInstance = new Chart(document.getElementById('spendPieChart'), {
+    pieChartInstance = safeChart('spendPieChart', {
         type: 'pie',
         data: {
             labels: filtered.map(a => a.account_name),
@@ -110,7 +111,7 @@ function renderCategoryChart(accounts) {
     const sorted = Object.entries(allCats).sort((a, b) => b[1] - a[1]).slice(0, 10);
     const colors = ['#25d366','#0dcaf0','#ffc107','#dc3545','#fd7e14','#6c757d','#198754','#6f42c1','#d63384','#0d6efd'];
 
-    categoryChartInstance = new Chart(document.getElementById('categoryChart'), {
+    categoryChartInstance = safeChart('categoryChart', {
         type: 'bar',
         data: {
             labels: sorted.map(([cat]) => cat),

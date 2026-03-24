@@ -28,7 +28,7 @@ async function loadSubaccounts() {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
-        const res = await fetch(`/api/subaccounts?${filterParams}`, { signal: controller.signal });
+        const res = await fetchWithDedup(`/api/subaccounts?${filterParams}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -43,14 +43,15 @@ async function loadSubaccounts() {
 }
 
 // Filter change handlers
+const debouncedLoad = debounce(loadSubaccounts, 300);
 document.getElementById('directionFilter')?.addEventListener('change', () => {
     if (window.updateURLFilters) updateURLFilters();
-    loadSubaccounts();
+    debouncedLoad();
 });
 document.getElementById('statusFilter')?.addEventListener('change', (e) => {
     if (e.target.type === 'checkbox') {
         if (window.updateURLFilters) updateURLFilters();
-        loadSubaccounts();
+        debouncedLoad();
     }
 });
 
@@ -58,7 +59,8 @@ document.getElementById('statusFilter')?.addEventListener('change', (e) => {
 window.accountsReady.then(() => loadSubaccounts());
 
 function renderPage(data) {
-    if (data.warnings && data.warnings.length) showWarning(data.warnings);
+    if (data.partial_data && data.warnings) showPartialDataWarning(data.warnings);
+    else if (data.warnings && data.warnings.length) showWarning(data.warnings);
     currentSubaccounts = data.subaccounts;
     renderTable(data.subaccounts);
     renderSpendChart(data.subaccounts);
@@ -118,7 +120,7 @@ function renderTable(subaccounts) {
 function renderSpendChart(subaccounts) {
     if (spendChartInstance) spendChartInstance.destroy();
     const top = subaccounts.filter(a => a.spend > 0).slice(0, 10);
-    spendChartInstance = new Chart(document.getElementById('spendChart'), {
+    spendChartInstance = safeChart('spendChart', {
         type: 'bar',
         data: {
             labels: top.map(a => a.friendly_name),
