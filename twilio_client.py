@@ -121,45 +121,21 @@ def _extract_template_body(content_obj):
 
 
 def _fetch_templates_for_client(client):
-    """Fetch content templates using a given Twilio client.
-
-    Fetches in pages of 200 to avoid loading everything at once.
-    """
+    """Fetch content templates using a given Twilio client."""
     result = {}
     try:
-        page = client.content.v1.contents.page(page_size=200)
-        while page:
-            for c in page:
-                body, template_type = _extract_template_body(c)
-                result[c.sid] = {
-                    "sid": c.sid,
-                    "friendly_name": c.friendly_name,
-                    "language": getattr(c, "language", "unknown"),
-                    "body": body,
-                    "template_type": template_type,
-                }
-            # Advance to next page; stop if no more
-            if page.next_page_url:
-                page = page.next_page()
-            else:
-                break
-    except AttributeError:
-        # Fallback for SDK versions without .page() method
-        try:
-            contents = client.content.v1.contents.list(limit=200)
-            for c in contents:
-                body, template_type = _extract_template_body(c)
-                result[c.sid] = {
-                    "sid": c.sid,
-                    "friendly_name": c.friendly_name,
-                    "language": getattr(c, "language", "unknown"),
-                    "body": body,
-                    "template_type": template_type,
-                }
-        except Exception as e:
-            logger.debug("Failed to fetch templates (fallback): %s", e)
+        contents = client.content.v1.contents.list(limit=200)
+        for c in contents:
+            body, template_type = _extract_template_body(c)
+            result[c.sid] = {
+                "sid": c.sid,
+                "friendly_name": c.friendly_name,
+                "language": getattr(c, "language", "unknown"),
+                "body": body,
+                "template_type": template_type,
+            }
     except Exception as e:
-        logger.debug("Failed to fetch templates: %s", e)
+        logger.warning("Failed to fetch templates: %s", e)
     return result
 
 
