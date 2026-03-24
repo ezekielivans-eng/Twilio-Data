@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ error_code }} - Twilio WhatsApp Analytics{% endblock %}
+{% block content %}
+<div style="text-align:center;padding:4rem 1rem;">
+    <h1 style="font-size:3rem;color:#dc3545;margin-bottom:0.5rem;">{{ error_code }}</h1>
+    <p style="font-size:1.2rem;color:#555;margin-bottom:2rem;">{{ error_message }}</p>
+    <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
+</div>
+{% endblock %}

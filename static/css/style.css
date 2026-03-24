@@ -551,7 +551,7 @@ th.sort-desc::after { content: " \2193"; opacity: 0.7; }
 /* Print stylesheet */
 @media print {
     .navbar, .date-picker, .template-filters, .loading-overlay,
-    .pagination-controls, .warning-banner, .limit-warning,
+    .pagination-controls, .warning-banner, .partial-data-banner, .limit-warning,
     .btn-sm, .back-link, #autoRefresh, .auto-refresh-label { display: none !important; }
     body { background: #fff; color: #000; }
     .container { max-width: 100%; padding: 0; }
