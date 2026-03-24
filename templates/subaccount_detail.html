@@ -4,6 +4,28 @@
 {% block content %}
 <h1 id="accountTitle">Sub-Account: {{ account_sid }}</h1>
 
+<div class="template-filters">
+    <div class="filter-group">
+        <label for="directionFilter">Direction:</label>
+        <select id="directionFilter" class="filter-select">
+            <option value="">All</option>
+            <option value="outbound" selected>Outbound Only</option>
+            <option value="inbound">Inbound Only</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Status:</label>
+        <div class="checkbox-group" id="statusFilter">
+            <label class="checkbox-label"><input type="checkbox" value="delivered" checked> Delivered</label>
+            <label class="checkbox-label"><input type="checkbox" value="read" checked> Read</label>
+            <label class="checkbox-label"><input type="checkbox" value="sent" checked> Sent</label>
+            <label class="checkbox-label"><input type="checkbox" value="failed" checked> Failed</label>
+            <label class="checkbox-label"><input type="checkbox" value="undelivered" checked> Undelivered</label>
+            <label class="checkbox-label"><input type="checkbox" value="queued" checked> Queued</label>
+        </div>
+    </div>
+</div>
+
 <div class="kpi-cards" id="kpiCards">
     <div class="kpi-card">
         <div class="kpi-label">Total Messages</div>

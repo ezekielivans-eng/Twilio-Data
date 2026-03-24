@@ -1,12 +1,16 @@
 let allTemplates = [];
 let currentSort = { key: 'total', asc: false };
+const PAGE_SIZE = 25;
+let currentPage = 0;
 
 function getTemplateFilterParams() {
     const dir = document.getElementById('directionFilter')?.value || '';
     const status = getStatusFilterValues();
+    const showUnused = document.getElementById('showUnused')?.checked ? '1' : '0';
     let params = getDateParams() + getAccountFilterParam();
     if (dir) params += `&direction=${dir}`;
     if (status) params += `&status=${encodeURIComponent(status)}`;
+    params += `&include_unused=${showUnused}`;
     return params;
 }
 
@@ -20,6 +24,7 @@ async function loadTemplates() {
     if (cached) {
         const data = JSON.parse(cached);
         allTemplates = data.templates;
+        currentPage = 0;
         applyClientFilters();
         return;
     }
@@ -36,7 +41,9 @@ async function loadTemplates() {
         }
         const data = await res.json();
         safeCacheSet(cacheKey, data);
+        if (data.warnings && data.warnings.length) showWarning(data.warnings);
         allTemplates = data.templates;
+        currentPage = 0;
         applyClientFilters();
         hideLoading();
     } catch(e) {
@@ -44,18 +51,30 @@ async function loadTemplates() {
     }
 }
 
-// Filter change handlers - all trigger a fresh load
+// Filter change handlers - server-side filters trigger a fresh load
 document.getElementById('directionFilter').addEventListener('change', loadTemplates);
 document.getElementById('statusFilter').addEventListener('change', (e) => {
     if (e.target.type === 'checkbox') loadTemplates();
 });
+document.getElementById('showUnused').addEventListener('change', loadTemplates);
 
 // Client-side filters (type + search) — no server call needed
 document.getElementById('typeFilter').addEventListener('change', applyClientFilters);
 document.getElementById('templateSearch').addEventListener('input', applyClientFilters);
 
+// Pagination controls
+document.getElementById('prevPage').addEventListener('click', () => {
+    if (currentPage > 0) { currentPage--; renderFromFiltered(); }
+});
+document.getElementById('nextPage').addEventListener('click', () => {
+    currentPage++;
+    renderFromFiltered();
+});
+
 // Initial load — wait for account filter to be ready
 window.accountsReady.then(() => loadTemplates());
+
+let lastFiltered = [];
 
 function applyClientFilters() {
     let filtered = allTemplates;
@@ -76,23 +95,45 @@ function applyClientFilters() {
             (t.body || '').toLowerCase().includes(query));
     }
 
-    renderAll(filtered);
+    currentPage = 0;
+    lastFiltered = filtered;
+    renderFromFiltered();
 }
 
-function renderAll(templates) {
-    renderKpis(templates);
-    renderTable(templates);
-    renderRatesChart(templates);
+function renderFromFiltered() {
+    const filtered = lastFiltered;
+    renderKpis(filtered);
+    renderRatesChart(filtered);
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    if (currentPage >= totalPages) currentPage = totalPages - 1;
+    const pageSlice = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+
+    renderTable(pageSlice, filtered);
+    renderPagination(filtered.length);
 
     const empty = document.getElementById('emptyState');
     const table = document.getElementById('templatesTable');
-    if (templates.length === 0) {
+    if (filtered.length === 0) {
         empty.style.display = 'block';
         table.style.display = 'none';
     } else {
         empty.style.display = 'none';
         table.style.display = '';
     }
+}
+
+function renderPagination(total) {
+    const paginationEl = document.getElementById('pagination');
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+    if (totalPages <= 1) {
+        paginationEl.style.display = 'none';
+        return;
+    }
+    paginationEl.style.display = 'flex';
+    document.getElementById('pageInfo').textContent = `Page ${currentPage + 1} of ${totalPages} (${total} templates)`;
+    document.getElementById('prevPage').disabled = currentPage === 0;
+    document.getElementById('nextPage').disabled = currentPage >= totalPages - 1;
 }
 
 function renderKpis(templates) {
@@ -114,11 +155,11 @@ function renderKpis(templates) {
     }
 }
 
-function renderTable(templates) {
+function renderTable(pageTemplates, allFiltered) {
     const tbody = document.getElementById('templatesBody');
     tbody.innerHTML = '';
 
-    templates.forEach((t, i) => {
+    pageTemplates.forEach((t, i) => {
         // Main row
         const tr = document.createElement('tr');
         tr.className = 'template-row clickable';
@@ -172,7 +213,7 @@ function renderTable(templates) {
         tbody.appendChild(detailTr);
     });
 
-    // Sorting
+    // Sorting - sorts the full filtered list, then re-renders current page
     document.querySelectorAll('#templatesTable thead th').forEach(th => {
         th.onclick = () => {
             const key = th.dataset.sort;
@@ -183,12 +224,12 @@ function renderTable(templates) {
                 currentSort.key = key;
                 currentSort.asc = false;
             }
-            const sorted = [...templates].sort((a, b) => {
+            lastFiltered = [...allFiltered].sort((a, b) => {
                 const av = a[key], bv = b[key];
                 let cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
                 return currentSort.asc ? cmp : -cmp;
             });
-            renderTable(sorted);
+            renderFromFiltered();
         };
     });
 }
@@ -215,4 +256,3 @@ function renderRatesChart(templates) {
         }
     });
 }
-

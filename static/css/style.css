@@ -423,3 +423,20 @@ tbody tr.clickable:hover { background: #e8f5e9; }
     margin-bottom: 1rem;
     font-size: 0.9rem;
 }
+
+/* Pagination */
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem 0;
+}
+.pagination-controls span {
+    font-size: 0.9rem;
+    color: #666;
+}
+.pagination-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

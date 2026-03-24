@@ -31,6 +31,7 @@ window._onAccountFilterChange = loadBilling;
 window.accountsReady.then(() => loadBilling());
 
 function renderPage(data) {
+    if (data.warnings && data.warnings.length) showWarning(data.warnings);
     renderKPIs(data);
     renderDailyChart(data.daily || []);
     renderPieChart(data.per_account);

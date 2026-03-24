@@ -112,13 +112,15 @@ def get_all_subaccount_data(date_from, date_to):
         }
 
     results = []
+    errors = []
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {executor.submit(fetch_one, acct): acct for acct in all_accounts}
         for future in as_completed(futures, timeout=150):
             try:
                 results.append(future.result(timeout=60))
-            except Exception:
+            except Exception as e:
                 acct = futures[future]
+                errors.append(f"Failed to fetch data for {acct['friendly_name']}: {e}")
                 results.append(
                     {
                         "sid": acct["sid"],
@@ -129,7 +131,7 @@ def get_all_subaccount_data(date_from, date_to):
                     }
                 )
 
-    return results
+    return results, errors
 
 
 ALL_STATUSES = {"delivered", "read", "sent", "failed", "undelivered", "queued", "sending"}
@@ -222,7 +224,7 @@ def api_dashboard():
         status_values = parse_status_filter()
         account_filter = request.args.get("account_sid", "")
         exclude_accounts = request.args.get("exclude_accounts", "")
-        all_data = get_all_subaccount_data(date_from, date_to)
+        all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
         all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
 
         all_messages = []
@@ -248,17 +250,18 @@ def api_dashboard():
         template_map = cached_templates()
         template_stats = aggregate_by_template(all_messages, template_map)[:10]
 
-        return jsonify(
-            {
-                "status_summary": status_summary,
-                "daily": daily,
-                "top_subaccounts": sub_summary[:10],
-                "top_templates": template_stats,
-                "date_from": date_from.strftime("%Y-%m-%d"),
-                "date_to": date_to.strftime("%Y-%m-%d"),
-                "limit_reached": any_limit_reached,
-            }
-        )
+        result = {
+            "status_summary": status_summary,
+            "daily": daily,
+            "top_subaccounts": sub_summary[:10],
+            "top_templates": template_stats,
+            "date_from": date_from.strftime("%Y-%m-%d"),
+            "date_to": date_to.strftime("%Y-%m-%d"),
+            "limit_reached": any_limit_reached,
+        }
+        if fetch_errors:
+            result["warnings"] = fetch_errors
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -271,7 +274,7 @@ def api_subaccounts():
         status_values = parse_status_filter()
         account_filter = request.args.get("account_sid", "")
         exclude_accounts = request.args.get("exclude_accounts", "")
-        all_data = get_all_subaccount_data(date_from, date_to)
+        all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
         all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
 
         # Apply filters to messages within each account
@@ -282,13 +285,14 @@ def api_subaccounts():
         all_data = filtered_data
 
         summary = build_subaccount_summary(all_data)
-        return jsonify(
-            {
-                "subaccounts": summary,
-                "date_from": date_from.strftime("%Y-%m-%d"),
-                "date_to": date_to.strftime("%Y-%m-%d"),
-            }
-        )
+        result = {
+            "subaccounts": summary,
+            "date_from": date_from.strftime("%Y-%m-%d"),
+            "date_to": date_to.strftime("%Y-%m-%d"),
+        }
+        if fetch_errors:
+            result["warnings"] = fetch_errors
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -297,10 +301,14 @@ def api_subaccounts():
 def api_subaccount_detail(sid):
     try:
         date_from, date_to = parse_date_params()
+        direction_filter = request.args.get("direction", "")
+        status_values = parse_status_filter()
         msg_data = cached_messages(sid, date_from, date_to)
         messages = msg_data["messages"]
         limit_reached = msg_data["limit_reached"]
         usage = cached_usage(sid, date_from, date_to)
+
+        messages = apply_message_filters(messages, direction_filter, status_values)
 
         status_summary = aggregate_message_statuses(messages)
         daily = aggregate_by_date(messages)
@@ -345,7 +353,7 @@ def api_templates():
         direction_filter = request.args.get("direction", "")
         status_values = parse_status_filter()
 
-        all_data = get_all_subaccount_data(date_from, date_to)
+        all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
         all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
         all_messages = []
         for entry in all_data:
@@ -354,7 +362,8 @@ def api_templates():
         all_messages = apply_message_filters(all_messages, direction_filter, status_values)
 
         template_map = cached_templates()
-        template_stats = aggregate_by_template(all_messages, template_map)
+        include_unused = request.args.get("include_unused", "0") == "1"
+        template_stats = aggregate_by_template(all_messages, template_map, include_unused=include_unused)
 
         # Count messages with/without content_sid for diagnostics
         with_sid = sum(1 for m in all_messages if m.get("content_sid"))
@@ -362,21 +371,22 @@ def api_templates():
 
         account_list = get_account_list()
 
-        return jsonify(
-            {
-                "templates": template_stats,
-                "subaccounts": account_list,
-                "total_filtered": len(all_messages),
-                "date_from": date_from.strftime("%Y-%m-%d"),
-                "date_to": date_to.strftime("%Y-%m-%d"),
-                "debug": {
-                    "total_messages": len(all_messages),
-                    "outbound_messages": outbound_count,
-                    "with_content_sid": with_sid,
-                    "template_map_size": len(template_map),
-                },
-            }
-        )
+        result = {
+            "templates": template_stats,
+            "subaccounts": account_list,
+            "total_filtered": len(all_messages),
+            "date_from": date_from.strftime("%Y-%m-%d"),
+            "date_to": date_to.strftime("%Y-%m-%d"),
+            "debug": {
+                "total_messages": len(all_messages),
+                "outbound_messages": outbound_count,
+                "with_content_sid": with_sid,
+                "template_map_size": len(template_map),
+            },
+        }
+        if fetch_errors:
+            result["warnings"] = fetch_errors
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -387,7 +397,7 @@ def api_billing():
         date_from, date_to = parse_date_params()
         account_filter = request.args.get("account_sid", "")
         exclude_accounts = request.args.get("exclude_accounts", "")
-        all_data = get_all_subaccount_data(date_from, date_to)
+        all_data, fetch_errors = get_all_subaccount_data(date_from, date_to)
         all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
 
         usage_by_account = {}
@@ -409,6 +419,8 @@ def api_billing():
         billing["date_to"] = date_to.strftime("%Y-%m-%d")
         billing["daily"] = aggregate_daily_spend(all_data)
 
+        if fetch_errors:
+            billing["warnings"] = fetch_errors
         return jsonify(billing)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

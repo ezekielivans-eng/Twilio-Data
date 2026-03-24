@@ -50,6 +50,7 @@ document.getElementById('statusFilter')?.addEventListener('change', (e) => {
 window.accountsReady.then(() => loadSubaccounts());
 
 function renderPage(data) {
+    if (data.warnings && data.warnings.length) showWarning(data.warnings);
     renderTable(data.subaccounts);
     renderSpendChart(data.subaccounts);
     hideLoading();

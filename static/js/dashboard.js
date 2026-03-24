@@ -53,6 +53,7 @@ document.getElementById('statusFilter')?.addEventListener('change', (e) => {
 window.accountsReady.then(() => loadDashboard());
 
 function renderPage(data) {
+    if (data.warnings && data.warnings.length) showWarning(data.warnings);
     renderKPIs(data.status_summary);
     renderStatusChart(data.status_summary);
     renderTimelineChart(data.daily);

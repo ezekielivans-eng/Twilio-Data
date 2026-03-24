@@ -43,7 +43,8 @@ def get_subaccounts():
             }
             for a in accounts
         ]
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to fetch subaccounts: %s", e)
         return []
 
 

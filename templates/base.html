@@ -88,8 +88,8 @@
                     opt.textContent = a.friendly_name;
                     globalAcctFilter.appendChild(opt);
                 });
-                // Default to "All Except Main"
-                globalAcctFilter.value = '__exclude_main__';
+                // Default to "All Accounts"
+                globalAcctFilter.value = '';
             }).catch(() => {});
 
             // Pages can await this before their initial load
@@ -117,6 +117,17 @@
                 el.innerHTML = '<p style="color:#dc3545;font-weight:bold;margin-bottom:1rem;">Error: ' + message + '</p>' +
                     '<button class="btn btn-primary" onclick="window.location.reload()">Retry</button>';
                 el.style.display = 'flex';
+            };
+            window.showWarning = (messages) => {
+                const existing = document.querySelector('.warning-banner');
+                if (existing) existing.remove();
+                const banner = document.createElement('div');
+                banner.className = 'warning-banner';
+                banner.style.cssText = 'background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:6px;padding:12px 16px;margin:10px 0;display:flex;justify-content:space-between;align-items:center;';
+                const text = Array.isArray(messages) ? messages.join('; ') : messages;
+                banner.innerHTML = '<span>Warning: ' + escapeHtml(text) + '</span><button onclick="this.parentElement.remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#856404;">&times;</button>';
+                const container = document.querySelector('.container');
+                container.insertBefore(banner, container.children[1]);
             };
             window.getStatusFilterValues = () => {
                 const container = document.getElementById('statusFilter');

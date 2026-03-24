@@ -36,6 +36,9 @@
         <label for="templateSearch">Search:</label>
         <input type="text" id="templateSearch" class="filter-input" placeholder="Search templates...">
     </div>
+    <div class="filter-group">
+        <label class="checkbox-label"><input type="checkbox" id="showUnused"> Show unused templates</label>
+    </div>
 </div>
 
 <div class="kpi-cards" id="templateKpis">
@@ -80,6 +83,11 @@
         </thead>
         <tbody id="templatesBody"></tbody>
     </table>
+    <div id="pagination" class="pagination-controls" style="display:none;">
+        <button id="prevPage" class="btn btn-secondary">Prev</button>
+        <span id="pageInfo"></span>
+        <button id="nextPage" class="btn btn-secondary">Next</button>
+    </div>
     <div id="emptyState" class="empty-state" style="display:none;">
         <p>No content templates found for the selected filters.</p>
     </div>

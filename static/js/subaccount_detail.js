@@ -1,5 +1,19 @@
-(async function() {
-    const cacheKey = `subaccount_detail_${ACCOUNT_SID}_${getDateParams()}`;
+let statusChartInstance = null;
+let timelineChartInstance = null;
+let templateChartInstance = null;
+
+function getDetailFilterParams() {
+    const dir = document.getElementById('directionFilter')?.value || '';
+    const status = getStatusFilterValues();
+    let params = getDateParams();
+    if (dir) params += `&direction=${dir}`;
+    if (status) params += `&status=${encodeURIComponent(status)}`;
+    return params;
+}
+
+async function loadDetail() {
+    const filterParams = getDetailFilterParams();
+    const cacheKey = `subaccount_detail_${ACCOUNT_SID}_${filterParams}`;
     const cached = sessionStorage.getItem(cacheKey);
 
     if (cached) {
@@ -12,7 +26,7 @@
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
-        const res = await fetch(`/api/subaccounts/${ACCOUNT_SID}?${getDateParams()}`, { signal: controller.signal });
+        const res = await fetch(`/api/subaccounts/${ACCOUNT_SID}?${filterParams}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -24,9 +38,19 @@
     } catch(e) {
         showError(e.name === 'AbortError' ? 'Request timed out. Try a shorter date range.' : e.message);
     }
-})();
+}
+
+// Filter change handlers
+document.getElementById('directionFilter').addEventListener('change', loadDetail);
+document.getElementById('statusFilter').addEventListener('change', (e) => {
+    if (e.target.type === 'checkbox') loadDetail();
+});
+
+// Initial load
+loadDetail();
 
 function renderPage(data) {
+    if (data.warnings && data.warnings.length) showWarning(data.warnings);
     document.getElementById('accountTitle').textContent = `Sub-Account: ${data.account_name}`;
     renderKPIs(data.status_summary);
     renderStatusChart(data.status_summary);
@@ -34,10 +58,13 @@ function renderPage(data) {
     renderTemplateChart(data.templates);
     renderTemplatesTable(data.templates);
     if (data.limit_reached) {
-        const warn = document.createElement('div');
-        warn.className = 'limit-warning';
-        warn.innerHTML = 'Message fetch limit reached. Totals may be approximate. Try a shorter date range for exact numbers.';
-        document.querySelector('.container').insertBefore(warn, document.getElementById('loading').nextSibling);
+        const existing = document.querySelector('.limit-warning');
+        if (!existing) {
+            const warn = document.createElement('div');
+            warn.className = 'limit-warning';
+            warn.innerHTML = 'Message fetch limit reached. Totals may be approximate. Try a shorter date range for exact numbers.';
+            document.querySelector('.container').insertBefore(warn, document.getElementById('loading').nextSibling);
+        }
     }
     hideLoading();
 }
@@ -50,7 +77,8 @@ function renderKPIs(s) {
 }
 
 function renderStatusChart(s) {
-    new Chart(document.getElementById('statusChart'), {
+    if (statusChartInstance) statusChartInstance.destroy();
+    statusChartInstance = new Chart(document.getElementById('statusChart'), {
         type: 'doughnut',
         data: {
             labels: ['Delivered', 'Read', 'Sent', 'Failed', 'Undelivered', 'Queued'],
@@ -64,11 +92,12 @@ function renderStatusChart(s) {
 }
 
 function renderTimelineChart(daily) {
+    if (timelineChartInstance) timelineChartInstance.destroy();
     const colors = {
         delivered: '#25d366', read: '#0dcaf0', sent: '#ffc107',
         failed: '#dc3545', undelivered: '#fd7e14', queued: '#6c757d'
     };
-    new Chart(document.getElementById('timelineChart'), {
+    timelineChartInstance = new Chart(document.getElementById('timelineChart'), {
         type: 'line',
         data: {
             labels: daily.dates,
@@ -89,8 +118,9 @@ function renderTimelineChart(daily) {
 }
 
 function renderTemplateChart(templates) {
+    if (templateChartInstance) templateChartInstance.destroy();
     const top = templates.slice(0, 10);
-    new Chart(document.getElementById('templateChart'), {
+    templateChartInstance = new Chart(document.getElementById('templateChart'), {
         type: 'bar',
         data: {
             labels: top.map(t => t.template_name.substring(0, 30)),
