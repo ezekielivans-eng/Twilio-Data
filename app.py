@@ -145,7 +145,7 @@ def get_all_subaccount_data(date_from, date_to):
 
     results = []
     errors = []
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         futures = {executor.submit(fetch_one, acct): acct for acct in all_accounts}
         for future in as_completed(futures, timeout=150):
             try:
@@ -500,6 +500,12 @@ def api_accounts():
 def api_clear_cache():
     cache.clear()
     return jsonify({"status": "ok", "message": "Cache cleared"})
+
+
+@app.route("/healthz")
+def healthz():
+    """Lightweight health check — no Twilio API calls."""
+    return "ok", 200
 
 
 if __name__ == "__main__":

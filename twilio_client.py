@@ -1,5 +1,4 @@
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
@@ -108,55 +107,56 @@ def _extract_template_body(content_obj):
 
 
 def _fetch_templates_for_client(client):
-    """Fetch content templates using a given Twilio client."""
+    """Fetch content templates using a given Twilio client.
+
+    Fetches in pages of 200 to avoid loading everything at once.
+    """
     result = {}
     try:
-        contents = client.content.v1.contents.list(limit=200)
-        for c in contents:
-            body, template_type = _extract_template_body(c)
-            result[c.sid] = {
-                "sid": c.sid,
-                "friendly_name": c.friendly_name,
-                "language": getattr(c, "language", "unknown"),
-                "body": body,
-                "template_type": template_type,
-            }
+        page = client.content.v1.contents.page(page_size=200)
+        while page:
+            for c in page:
+                body, template_type = _extract_template_body(c)
+                result[c.sid] = {
+                    "sid": c.sid,
+                    "friendly_name": c.friendly_name,
+                    "language": getattr(c, "language", "unknown"),
+                    "body": body,
+                    "template_type": template_type,
+                }
+            # Advance to next page; stop if no more
+            if page.next_page_url:
+                page = page.next_page()
+            else:
+                break
+    except AttributeError:
+        # Fallback for SDK versions without .page() method
+        try:
+            contents = client.content.v1.contents.list(limit=200)
+            for c in contents:
+                body, template_type = _extract_template_body(c)
+                result[c.sid] = {
+                    "sid": c.sid,
+                    "friendly_name": c.friendly_name,
+                    "language": getattr(c, "language", "unknown"),
+                    "body": body,
+                    "template_type": template_type,
+                }
+        except Exception as e:
+            logger.debug("Failed to fetch templates (fallback): %s", e)
     except Exception as e:
         logger.debug("Failed to fetch templates: %s", e)
     return result
 
 
 def get_content_templates(account_sid=None):
-    """Fetch content templates from the main account and all sub-accounts in parallel."""
-    result = {}
-    # Main account templates
-    result.update(_fetch_templates_for_client(get_client()))
+    """Fetch content templates from the main account only.
 
-    # Sub-account templates fetched in parallel
-    try:
-        subaccounts = get_subaccounts()
-
-        def fetch_sub_templates(acct):
-            sub_client = get_subaccount_client(acct["sid"])
-            return _fetch_templates_for_client(sub_client)
-
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = {
-                executor.submit(fetch_sub_templates, acct): acct
-                for acct in subaccounts
-            }
-            for future in as_completed(futures, timeout=60):
-                try:
-                    result.update(future.result(timeout=30))
-                except Exception as e:
-                    acct = futures[future]
-                    logger.debug(
-                        "Failed templates for %s: %s", acct["sid"], e
-                    )
-    except Exception as e:
-        logger.debug("Failed to fetch sub-account templates: %s", e)
-
-    return result
+    Content API templates are owned by the parent account and shared across
+    sub-accounts, so fetching per-sub-account is unnecessary and wastes
+    memory + API calls.
+    """
+    return _fetch_templates_for_client(get_client())
 
 
 def get_usage_records(account_sid, date_from, date_to):
