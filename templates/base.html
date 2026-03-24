@@ -128,6 +128,7 @@
                 return val ? `&account_sid=${val}` : '';
             };
             window.getDateParams = () => `date_from=${dateFrom.value}&date_to=${dateTo.value}`;
+            window.csvFilename = (base) => `${base}_${dateFrom.value}_${dateTo.value}.csv`;
             window.showLoading = () => document.getElementById('loading').style.display = 'flex';
             window.hideLoading = () => document.getElementById('loading').style.display = 'none';
             window.showError = (message) => {

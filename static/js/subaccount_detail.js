@@ -91,10 +91,10 @@ function renderStatusChart(s) {
     statusChartInstance = safeChart('statusChart', {
         type: 'doughnut',
         data: {
-            labels: ['Delivered', 'Read', 'Sent', 'Failed', 'Undelivered', 'Queued'],
+            labels: ['Delivered', 'Read', 'Sent', 'Sending', 'Failed', 'Undelivered', 'Queued'],
             datasets: [{
-                data: [s.delivered, s.read, s.sent, s.failed, s.undelivered, s.queued],
-                backgroundColor: ['#25d366', '#0dcaf0', '#ffc107', '#dc3545', '#fd7e14', '#6c757d']
+                data: [s.delivered, s.read, s.sent, s.sending, s.failed, s.undelivered, s.queued],
+                backgroundColor: ['#25d366', '#0dcaf0', '#ffc107', '#adb5bd', '#dc3545', '#fd7e14', '#6c757d']
             }]
         },
         options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
@@ -212,10 +212,10 @@ function renderTemplatesTable(templates) {
 }
 
 document.getElementById('exportDetailCSV')?.addEventListener('click', () => {
-    const headers = ['Template Name', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const headers = ['Template Name', 'Body', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
     const rows = currentTemplates.map(t => [
-        t.template_name, t.total, t.delivered, t.read, t.failed,
+        t.template_name, t.body || '', t.total, t.delivered, t.read, t.failed,
         t.delivery_rate + '%', t.read_rate + '%', t.error_rate + '%'
     ]);
-    exportCSV('subaccount_templates.csv', headers, rows);
+    exportCSV(csvFilename('subaccount_templates'), headers, rows);
 });

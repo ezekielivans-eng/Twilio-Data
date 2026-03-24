@@ -1,9 +1,10 @@
 import logging
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, g, jsonify, render_template, request
 from flask_compress import Compress
 
 import config
@@ -44,6 +45,19 @@ Compress(app)
 cache = TTLCache(ttl_seconds=config.CACHE_TTL_SECONDS)
 
 
+@app.before_request
+def _start_timer():
+    g.start_time = time.time()
+
+
+@app.after_request
+def _log_request(response):
+    if request.path.startswith("/api/"):
+        duration = time.time() - getattr(g, "start_time", time.time())
+        logger.info("%s %s %s %.2fs", request.method, request.path, response.status_code, duration)
+    return response
+
+
 MAX_DATE_RANGE_DAYS = 30
 
 
@@ -80,12 +94,15 @@ def validate_account_sid(sid):
     return sid
 
 
+SLOW_CHANGE_TTL = 3600  # 1 hour for data that rarely changes
+
+
 def cached_subaccounts():
     key = "subaccounts"
     data = cache.get(key)
     if data is None:
         data = get_subaccounts()
-        cache.set(key, data)
+        cache.set(key, data, ttl=SLOW_CHANGE_TTL)
     return data
 
 
@@ -114,7 +131,7 @@ def cached_templates():
     data = cache.get(key)
     if data is None:
         data = get_content_templates()
-        cache.set(key, data)
+        cache.set(key, data, ttl=SLOW_CHANGE_TTL)
     return data
 
 
@@ -145,7 +162,7 @@ def get_all_subaccount_data(date_from, date_to):
 
     results = []
     errors = []
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         futures = {executor.submit(fetch_one, acct): acct for acct in all_accounts}
         for future in as_completed(futures, timeout=150):
             try:
@@ -407,6 +424,9 @@ def api_templates():
         all_data = filter_data_by_accounts(all_data, account_filter, exclude_accounts)
         all_messages = []
         for entry in all_data:
+            # Tag each message with its account info for per-template tracking
+            for m in entry["messages"]:
+                m["_account_name"] = entry["friendly_name"]
             all_messages.extend(entry["messages"])
 
         all_messages = apply_message_filters(all_messages, direction_filter, status_values)
@@ -500,6 +520,12 @@ def api_accounts():
 def api_clear_cache():
     cache.clear()
     return jsonify({"status": "ok", "message": "Cache cleared"})
+
+
+@app.route("/healthz")
+def healthz():
+    """Lightweight health check — no Twilio API calls."""
+    return "ok", 200
 
 
 if __name__ == "__main__":

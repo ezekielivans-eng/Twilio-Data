@@ -64,6 +64,12 @@ window.accountsReady.then(() => loadDashboard());
 function renderPage(data) {
     if (data.partial_data && data.warnings) showPartialDataWarning(data.warnings);
     else if (data.warnings && data.warnings.length) showWarning(data.warnings);
+    const empty = document.getElementById('emptyState');
+    if (data.status_summary.total === 0) {
+        empty.style.display = 'block';
+    } else {
+        empty.style.display = 'none';
+    }
     renderKPIs(data.status_summary);
     renderStatusChart(data.status_summary);
     renderTimelineChart(data.daily);
@@ -74,18 +80,24 @@ function renderPage(data) {
     currentTopSubaccounts = data.top_subaccounts;
     currentTopTemplates = data.top_templates;
     if (data.limit_reached) {
-        showLimitWarning();
+        const limitAccounts = data.top_subaccounts
+            .filter(a => a.limit_reached)
+            .map(a => a.friendly_name);
+        showLimitWarning(limitAccounts);
     }
     setLastUpdated();
     hideLoading();
 }
 
-function showLimitWarning() {
+function showLimitWarning(accountNames) {
     const existing = document.querySelector('.limit-warning');
     if (existing) return;
     const warn = document.createElement('div');
     warn.className = 'limit-warning';
-    warn.innerHTML = 'Some accounts hit the message fetch limit. Totals may be approximate. Try a shorter date range for exact numbers.';
+    const names = accountNames && accountNames.length
+        ? ' Affected: ' + accountNames.map(n => escapeHtml(n)).join(', ') + '.'
+        : '';
+    warn.innerHTML = 'Message fetch limit reached — totals may be approximate.' + names + ' Try a shorter date range for exact numbers.';
     document.querySelector('.container').insertBefore(warn, document.getElementById('loading').nextSibling);
 }
 
@@ -101,10 +113,10 @@ function renderStatusChart(s) {
     statusChartInstance = safeChart('statusChart', {
         type: 'doughnut',
         data: {
-            labels: ['Delivered', 'Read', 'Sent', 'Failed', 'Undelivered', 'Queued'],
+            labels: ['Delivered', 'Read', 'Sent', 'Sending', 'Failed', 'Undelivered', 'Queued'],
             datasets: [{
-                data: [s.delivered, s.read, s.sent, s.failed, s.undelivered, s.queued],
-                backgroundColor: ['#25d366', '#0dcaf0', '#ffc107', '#dc3545', '#fd7e14', '#6c757d']
+                data: [s.delivered, s.read, s.sent, s.sending, s.failed, s.undelivered, s.queued],
+                backgroundColor: ['#25d366', '#0dcaf0', '#ffc107', '#adb5bd', '#dc3545', '#fd7e14', '#6c757d']
             }]
         },
         options: {
@@ -217,14 +229,14 @@ document.getElementById('exportSubaccountsCSV')?.addEventListener('click', () =>
         a.friendly_name, a.total_messages, a.delivered, a.read, a.failed,
         a.delivery_rate + '%', a.read_rate + '%', a.error_rate + '%'
     ]);
-    exportCSV('dashboard_subaccounts.csv', headers, rows);
+    exportCSV(csvFilename('dashboard_subaccounts'), headers, rows);
 });
 
 document.getElementById('exportTemplatesCSV')?.addEventListener('click', () => {
-    const headers = ['Template Name', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const headers = ['Template Name', 'Body', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
     const rows = currentTopTemplates.map(t => [
-        t.template_name, t.total, t.delivered, t.read, t.failed,
+        t.template_name, t.body || '', t.total, t.delivered, t.read, t.failed,
         t.delivery_rate + '%', t.read_rate + '%', t.error_rate + '%'
     ]);
-    exportCSV('dashboard_templates.csv', headers, rows);
+    exportCSV(csvFilename('dashboard_templates'), headers, rows);
 });

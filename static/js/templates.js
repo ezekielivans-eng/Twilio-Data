@@ -185,7 +185,7 @@ function renderTable(pageTemplates, allFiltered) {
                 <span class="expand-icon">&#9654;</span>
                 <strong>${escapeHtml(t.template_name)}</strong>
             </td>
-            <td><span class="type-badge type-${t.template_type || 'unknown'}">${escapeHtml(t.template_type || 'unknown')}</span></td>
+            <td>${escapeHtml(t.accounts || '-')}</td>
             <td>${t.total.toLocaleString()}</td>
             <td>${t.delivered.toLocaleString()}</td>
             <td>${t.read.toLocaleString()}</td>
@@ -270,12 +270,12 @@ function updateSortIndicators(activeKey) {
 let ratesChartInstance = null;
 
 document.getElementById('exportTemplatesCSV')?.addEventListener('click', () => {
-    const headers = ['Template Name', 'Type', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
+    const headers = ['Template Name', 'Sub Account', 'Body', 'Total', 'Delivered', 'Read', 'Failed', 'Delivery Rate', 'Read Rate', 'Error Rate'];
     const rows = lastFiltered.map(t => [
-        t.template_name, t.template_type, t.total, t.delivered, t.read, t.failed,
+        t.template_name, t.accounts || '', t.body || '', t.total, t.delivered, t.read, t.failed,
         t.delivery_rate + '%', t.read_rate + '%', t.error_rate + '%'
     ]);
-    exportCSV('templates_export.csv', headers, rows);
+    exportCSV(csvFilename('templates'), headers, rows);
 });
 
 function renderRatesChart(templates) {

@@ -81,12 +81,14 @@ def test_by_date_skips_missing_date():
 # ── aggregate_by_template ────────────────────────────────────
 
 
-def _make_msg(content_sid=None, body=None, status="delivered", direction="outbound-api"):
+def _make_msg(content_sid=None, body=None, status="delivered", direction="outbound-api", account_name=None):
     m = {"status": status, "direction": direction}
     if content_sid:
         m["content_sid"] = content_sid
     if body:
         m["body"] = body
+    if account_name:
+        m["_account_name"] = account_name
     return m
 
 
@@ -99,6 +101,28 @@ def test_template_by_content_sid():
     assert len(result) == 1
     assert result[0]["template_name"] == "Welcome"
     assert result[0]["total"] == 5
+
+
+def test_template_tracks_accounts():
+    template_map = {
+        "HX123": {"friendly_name": "Welcome", "body": "Hello!", "template_type": "whatsapp"},
+    }
+    msgs = [
+        _make_msg(content_sid="HX123", account_name="Acct A"),
+        _make_msg(content_sid="HX123", account_name="Acct B"),
+        _make_msg(content_sid="HX123", account_name="Acct A"),
+    ]
+    result = aggregate_by_template(msgs, template_map)
+    assert result[0]["accounts"] == "Acct A, Acct B"
+
+
+def test_template_accounts_empty_when_untagged():
+    template_map = {
+        "HX123": {"friendly_name": "Welcome", "body": "Hello!", "template_type": "whatsapp"},
+    }
+    msgs = [_make_msg(content_sid="HX123")]
+    result = aggregate_by_template(msgs, template_map)
+    assert result[0]["accounts"] == ""
 
 
 def test_template_body_prefix_matching():

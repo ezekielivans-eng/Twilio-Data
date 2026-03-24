@@ -36,3 +36,14 @@ def test_overwrite():
     c.set("k", "old")
     c.set("k", "new")
     assert c.get("k") == "new"
+
+
+def test_per_key_ttl():
+    c = TTLCache(ttl_seconds=10)
+    c.set("short", "val", ttl=0.05)
+    c.set("long", "val", ttl=10)
+    assert c.get("short") == "val"
+    assert c.get("long") == "val"
+    time.sleep(0.06)
+    assert c.get("short") is None  # expired by custom TTL
+    assert c.get("long") == "val"  # still alive

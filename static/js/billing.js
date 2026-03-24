@@ -38,6 +38,8 @@ window.accountsReady.then(() => loadBilling());
 function renderPage(data) {
     if (data.partial_data && data.warnings) showPartialDataWarning(data.warnings);
     else if (data.warnings && data.warnings.length) showWarning(data.warnings);
+    const empty = document.getElementById('emptyState');
+    empty.style.display = data.total_spend === 0 ? 'block' : 'none';
     renderKPIs(data);
     renderDailyChart(data.daily || []);
     renderPieChart(data.per_account);
@@ -143,5 +145,5 @@ function renderTable(accounts) {
 document.getElementById('exportBillingCSV')?.addEventListener('click', () => {
     const headers = ['Account Name', 'Account SID', 'Total Spend'];
     const rows = currentAccounts.map(a => [a.account_name, a.account_sid, a.total_spend.toFixed(2)]);
-    exportCSV('billing_export.csv', headers, rows);
+    exportCSV(csvFilename('billing'), headers, rows);
 });
