@@ -117,7 +117,7 @@ def parse_date_params():
         raise ValidationError(f"Invalid date_from format: expected YYYY-MM-DD, got '{date_from}'")
     if date_from > date_to:
         raise ValidationError("date_from must not be after date_to")
-    # Cap to maximum 30 days
+    # Cap to maximum 90 days
     if (date_to - date_from).days > MAX_DATE_RANGE_DAYS:
         date_from = date_to - timedelta(days=MAX_DATE_RANGE_DAYS)
     return date_from, date_to
@@ -147,9 +147,7 @@ def cached_messages(account_sid, date_from, date_to):
     key = f"messages:{account_sid}:{date_from}:{date_to}"
     data = cache.get(key)
     if data is None:
-        result = get_messages(account_sid, date_from, date_to)
-        # get_messages now returns {"messages": [...], "limit_reached": bool}
-        data = result
+        data = get_messages(account_sid, date_from, date_to)
         cache.set(key, data)
     return data
 
@@ -170,6 +168,17 @@ def cached_templates():
         data = get_content_templates()
         cache.set(key, data, ttl=SLOW_CHANGE_TTL)
     return data
+
+
+def _empty_account_entry(acct):
+    """Return a zero-data entry for an account when fetching fails."""
+    return {
+        "sid": acct["sid"],
+        "friendly_name": acct["friendly_name"],
+        "messages": [],
+        "limit_reached": False,
+        "usage": [],
+    }
 
 
 def get_all_subaccount_data(date_from, date_to):
@@ -211,30 +220,14 @@ def get_all_subaccount_data(date_from, date_to):
                 completed_sids.add(acct["sid"])
                 logger.warning("[%s] Failed to fetch data for %s (%s): %s", getattr(g, "request_id", "-"), acct["friendly_name"], acct["sid"], e)
                 errors.append(f"Could not load data for {acct['friendly_name']}")
-                results.append(
-                    {
-                        "sid": acct["sid"],
-                        "friendly_name": acct["friendly_name"],
-                        "messages": [],
-                        "limit_reached": False,
-                        "usage": [],
-                    }
-                )
+                results.append(_empty_account_entry(acct))
     except TimeoutError:
         logger.warning("[%s] Timed out waiting for subaccount data", getattr(g, "request_id", "-"))
         for future, acct in futures.items():
             if acct["sid"] not in completed_sids:
                 future.cancel()
                 errors.append(f"Timed out fetching data for {acct['friendly_name']}")
-                results.append(
-                    {
-                        "sid": acct["sid"],
-                        "friendly_name": acct["friendly_name"],
-                        "messages": [],
-                        "limit_reached": False,
-                        "usage": [],
-                    }
-                )
+                results.append(_empty_account_entry(acct))
 
     return results, errors
 

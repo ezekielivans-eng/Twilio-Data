@@ -1,4 +1,5 @@
 import logging
+import threading
 from functools import lru_cache
 
 from twilio.rest import Client
@@ -12,14 +13,16 @@ TWILIO_TIMEOUT = config.TWILIO_TIMEOUT
 TWILIO_RETRIES = config.TWILIO_RETRIES
 
 _shared_http_client = None
+_http_client_lock = threading.Lock()
 
 
 def _get_http_client():
     global _shared_http_client
-    if _shared_http_client is None:
-        _shared_http_client = TwilioHttpClient(
-            max_retries=TWILIO_RETRIES, timeout=TWILIO_TIMEOUT
-        )
+    with _http_client_lock:
+        if _shared_http_client is None:
+            _shared_http_client = TwilioHttpClient(
+                max_retries=TWILIO_RETRIES, timeout=TWILIO_TIMEOUT
+            )
     return _shared_http_client
 
 

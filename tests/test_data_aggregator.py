@@ -65,8 +65,8 @@ def test_by_date_groups_by_day():
     assert result["totals"] == [2, 1]
     assert result["series"]["delivered"] == [1, 0]
     assert result["series"]["sent"] == [0, 1]
-    # Only delivery statuses in series
-    assert "failed" not in result["series"]
+    assert "failed" in result["series"]
+    assert "undelivered" in result["series"]
 
 
 def test_by_date_falls_back_to_date_created():
@@ -79,6 +79,19 @@ def test_by_date_skips_missing_date():
     msgs = [{"status": "sent"}]  # no date_sent or date_created
     result = aggregate_by_date(msgs)
     assert result["dates"] == []
+
+
+def test_by_date_includes_failed_and_undelivered():
+    msgs = [
+        {"date_sent": "2024-02-01T10:00:00+00:00", "status": "failed"},
+        {"date_sent": "2024-02-01T11:00:00+00:00", "status": "undelivered"},
+        {"date_sent": "2024-02-01T12:00:00+00:00", "status": "delivered"},
+    ]
+    result = aggregate_by_date(msgs)
+    assert result["series"]["failed"] == [1]
+    assert result["series"]["undelivered"] == [1]
+    assert result["series"]["delivered"] == [1]
+    assert result["totals"] == [3]
 
 
 # ── aggregate_by_template ────────────────────────────────────

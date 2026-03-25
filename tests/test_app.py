@@ -74,7 +74,17 @@ def test_billing_page(client):
     assert resp.status_code == 200
 
 
-# ── Cache clear ──────────────────────────────────────────────
+def test_errors_page(client):
+    resp = client.get("/errors")
+    assert resp.status_code == 200
+
+
+def test_subaccount_detail_page(client):
+    resp = client.get("/subaccounts/ACaaaabbbbccccdddd00001111222233334444")
+    assert resp.status_code == 200
+
+
+# ── Cache clear / stats ──────────────────────────────────────
 
 
 def test_cache_clear(client):
@@ -82,3 +92,52 @@ def test_cache_clear(client):
     assert resp.status_code == 200
     data = json.loads(resp.data)
     assert data["status"] == "ok"
+
+
+def test_cache_stats(client):
+    resp = client.get("/api/cache/stats")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert "hits" in data
+    assert "misses" in data
+    assert "hit_rate" in data
+
+
+# ── Health check ─────────────────────────────────────────────
+
+
+def test_healthz(client):
+    resp = client.get("/healthz")
+    assert resp.status_code == 200
+
+
+def test_healthz_detail(client):
+    resp = client.get("/healthz?detail=1")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["status"] == "ok"
+    assert "cache_size" in data
+    assert "cache_hit_rate" in data
+
+
+# ── API: accounts ────────────────────────────────────────────
+
+
+def test_api_accounts(client):
+    with patch("app.get_subaccounts", return_value=[]):
+        resp = client.get("/api/accounts")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert "accounts" in data
+    assert "main_sid" in data
+    assert isinstance(data["accounts"], list)
+
+
+# ── API: errors validation ───────────────────────────────────
+
+
+def test_api_errors_invalid_date(client):
+    resp = client.get("/api/errors?date_from=not-a-date")
+    assert resp.status_code == 400
+    data = json.loads(resp.data)
+    assert "error" in data

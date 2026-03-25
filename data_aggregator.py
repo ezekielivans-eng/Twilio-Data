@@ -49,11 +49,7 @@ def aggregate_by_date(messages):
         "dates": sorted_days,
         "series": {
             status: [daily[d].get(status, 0) for d in sorted_days]
-            for status in [
-                "sent",
-                "delivered",
-                "read",
-            ]
+            for status in ["sent", "delivered", "read", "failed", "undelivered"]
         },
         "totals": [daily[d].get("total", 0) for d in sorted_days],
     }
