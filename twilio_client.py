@@ -63,14 +63,18 @@ def get_subaccounts():
 def get_messages(account_sid, date_from, date_to, limit=1000):
     try:
         client = get_subaccount_client(account_sid)
+        # Twilio's date_sent_after/before are exclusive (> and <).
+        # Adjust by 1 day on each side to make the range inclusive.
+        from datetime import timedelta
         messages = client.messages.list(
-            date_sent_after=date_from,
-            date_sent_before=date_to,
+            date_sent_after=date_from - timedelta(days=1),
+            date_sent_before=date_to + timedelta(days=1),
             limit=limit,
         )
     except Exception as e:
         logger.error("Failed to fetch messages for %s: %s", account_sid, e)
         return {"messages": [], "limit_reached": False}
+    total_fetched = len(messages)
     whatsapp_messages = []
     for m in messages:
         is_whatsapp = (m.from_ and m.from_.startswith("whatsapp:")) or (
@@ -89,7 +93,9 @@ def get_messages(account_sid, date_from, date_to, limit=1000):
                     "content_sid": getattr(m, "content_sid", None),
                 }
             )
-    return {"messages": whatsapp_messages, "limit_reached": len(messages) >= limit}
+    # limit_reached means Twilio returned the max — there are likely more messages
+    # beyond this window that we couldn't fetch
+    return {"messages": whatsapp_messages, "limit_reached": total_fetched >= limit}
 
 
 def _get_field(obj, field):
