@@ -8,8 +8,8 @@ import config
 
 logger = logging.getLogger(__name__)
 
-TWILIO_TIMEOUT = 20  # seconds per request
-TWILIO_RETRIES = 1   # retry once on failure (2 attempts total)
+TWILIO_TIMEOUT = config.TWILIO_TIMEOUT
+TWILIO_RETRIES = config.TWILIO_RETRIES
 
 _shared_http_client = None
 

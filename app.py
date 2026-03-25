@@ -14,7 +14,7 @@ from flask_limiter.util import get_remote_address
 import config
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, config.LOG_LEVEL, logging.INFO),
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -49,11 +49,11 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = not config.FLASK_DEBUG
 Compress(app)
-limiter = Limiter(get_remote_address, app=app, default_limits=["60 per minute"])
+limiter = Limiter(get_remote_address, app=app, default_limits=[config.RATE_LIMIT])
 
-cache = TTLCache(ttl_seconds=config.CACHE_TTL_SECONDS)
+cache = TTLCache(ttl_seconds=config.CACHE_TTL_SECONDS, max_size=config.CACHE_MAX_SIZE)
 
-_executor = ThreadPoolExecutor(max_workers=6)
+_executor = ThreadPoolExecutor(max_workers=config.EXECUTOR_MAX_WORKERS)
 atexit.register(_executor.shutdown, wait=False, cancel_futures=True)
 
 
@@ -91,7 +91,7 @@ def handle_404(e):
 @app.errorhandler(500)
 def handle_500(e):
     if request.path.startswith("/api/"):
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Internal server error", "request_id": getattr(g, "request_id", None)}), 500
     return render_template("error.html", error_code=500, error_message="Something went wrong. Please try again later."), 500
 
 
@@ -210,7 +210,7 @@ def get_all_subaccount_data(date_from, date_to):
             except Exception as e:
                 completed_sids.add(acct["sid"])
                 logger.warning("[%s] Failed to fetch data for %s (%s): %s", getattr(g, "request_id", "-"), acct["friendly_name"], acct["sid"], e)
-                errors.append(f"Failed to fetch data for {acct['friendly_name']}: {e}")
+                errors.append(f"Could not load data for {acct['friendly_name']}")
                 results.append(
                     {
                         "sid": acct["sid"],
@@ -406,7 +406,7 @@ def api_dashboard():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.exception("[%s] api_dashboard failed", getattr(g, "request_id", "-"))
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Internal server error", "request_id": getattr(g, "request_id", None)}), 500
 
 
 @app.route("/api/subaccounts")
@@ -435,7 +435,7 @@ def api_subaccounts():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.exception("[%s] api_subaccounts failed", getattr(g, "request_id", "-"))
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Internal server error", "request_id": getattr(g, "request_id", None)}), 500
 
 
 @app.route("/api/subaccounts/<sid>")
@@ -486,7 +486,7 @@ def api_subaccount_detail(sid):
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.exception("[%s] api_subaccount_detail failed for sid=%s", getattr(g, "request_id", "-"), sid)
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Internal server error", "request_id": getattr(g, "request_id", None)}), 500
 
 
 @app.route("/api/templates")
@@ -533,7 +533,7 @@ def api_templates():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.exception("[%s] api_templates failed", getattr(g, "request_id", "-"))
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Internal server error", "request_id": getattr(g, "request_id", None)}), 500
 
 
 @app.route("/api/billing")
@@ -571,7 +571,7 @@ def api_billing():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.exception("[%s] api_billing failed", getattr(g, "request_id", "-"))
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Internal server error", "request_id": getattr(g, "request_id", None)}), 500
 
 
 @app.route("/api/errors")
@@ -600,7 +600,7 @@ def api_errors():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.exception("[%s] api_errors failed", getattr(g, "request_id", "-"))
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Internal server error", "request_id": getattr(g, "request_id", None)}), 500
 
 
 @app.route("/api/accounts")
@@ -609,7 +609,7 @@ def api_accounts():
         return jsonify({"accounts": get_account_list(), "main_sid": config.TWILIO_ACCOUNT_SID})
     except Exception as e:
         logger.exception("[%s] api_accounts failed", getattr(g, "request_id", "-"))
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Internal server error", "request_id": getattr(g, "request_id", None)}), 500
 
 
 @app.route("/api/cache/clear", methods=["POST"])
@@ -631,6 +631,14 @@ def api_cache_stats():
 @app.route("/healthz")
 def healthz():
     """Lightweight health check — no Twilio API calls."""
+    if request.args.get("detail") == "1":
+        stats = cache.stats()
+        return jsonify({
+            "status": "ok",
+            "cache_size": stats["size"],
+            "cache_max_size": stats["max_size"],
+            "cache_hit_rate": stats["hit_rate"],
+        })
     return "ok", 200
 
 

@@ -24,3 +24,19 @@ if not FLASK_SECRET_KEY:
             "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
         )
 CACHE_TTL_SECONDS = int(os.environ.get("CACHE_TTL_SECONDS", "300"))
+
+# Twilio API settings
+TWILIO_TIMEOUT = int(os.environ.get("TWILIO_TIMEOUT", "20"))
+TWILIO_RETRIES = int(os.environ.get("TWILIO_RETRIES", "1"))
+
+# Worker pool
+EXECUTOR_MAX_WORKERS = int(os.environ.get("EXECUTOR_MAX_WORKERS", "6"))
+
+# Cache
+CACHE_MAX_SIZE = int(os.environ.get("CACHE_MAX_SIZE", "200"))
+
+# Rate limiting
+RATE_LIMIT = os.environ.get("RATE_LIMIT", "60 per minute")
+
+# Logging
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")

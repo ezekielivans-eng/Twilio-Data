@@ -72,6 +72,16 @@ body {
     font-size: 0.85rem;
 }
 
+.date-presets {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.date-presets .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
 /* Buttons */
 .btn {
     padding: 0.45rem 1rem;
