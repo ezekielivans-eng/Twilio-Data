@@ -112,7 +112,7 @@ def parse_date_params():
         if date_from:
             date_from = datetime.strptime(date_from, "%Y-%m-%d")
         else:
-            date_from = date_to  # default to single day
+            date_from = date_to - timedelta(days=7)
     except ValueError:
         raise ValidationError(f"Invalid date_from format: expected YYYY-MM-DD, got '{date_from}'")
     if date_from > date_to:
@@ -199,23 +199,42 @@ def get_all_subaccount_data(date_from, date_to):
 
     results = []
     errors = []
+    completed_sids = set()
     futures = {_executor.submit(fetch_one, acct): acct for acct in all_accounts}
-    for future in as_completed(futures, timeout=90):
-        try:
-            results.append(future.result(timeout=60))
-        except Exception as e:
+    try:
+        for future in as_completed(futures, timeout=90):
             acct = futures[future]
-            logger.warning("[%s] Failed to fetch data for %s (%s): %s", getattr(g, "request_id", "-"), acct["friendly_name"], acct["sid"], e)
-            errors.append(f"Failed to fetch data for {acct['friendly_name']}: {e}")
-            results.append(
-                {
-                    "sid": acct["sid"],
-                    "friendly_name": acct["friendly_name"],
-                    "messages": [],
-                    "limit_reached": False,
-                    "usage": [],
-                }
-            )
+            try:
+                results.append(future.result(timeout=60))
+                completed_sids.add(acct["sid"])
+            except Exception as e:
+                completed_sids.add(acct["sid"])
+                logger.warning("[%s] Failed to fetch data for %s (%s): %s", getattr(g, "request_id", "-"), acct["friendly_name"], acct["sid"], e)
+                errors.append(f"Failed to fetch data for {acct['friendly_name']}: {e}")
+                results.append(
+                    {
+                        "sid": acct["sid"],
+                        "friendly_name": acct["friendly_name"],
+                        "messages": [],
+                        "limit_reached": False,
+                        "usage": [],
+                    }
+                )
+    except TimeoutError:
+        logger.warning("[%s] Timed out waiting for subaccount data", getattr(g, "request_id", "-"))
+        for future, acct in futures.items():
+            if acct["sid"] not in completed_sids:
+                future.cancel()
+                errors.append(f"Timed out fetching data for {acct['friendly_name']}")
+                results.append(
+                    {
+                        "sid": acct["sid"],
+                        "friendly_name": acct["friendly_name"],
+                        "messages": [],
+                        "limit_reached": False,
+                        "usage": [],
+                    }
+                )
 
     return results, errors
 
@@ -594,7 +613,12 @@ def api_accounts():
 
 
 @app.route("/api/cache/clear", methods=["POST"])
+@limiter.limit("3 per minute")
 def api_clear_cache():
+    # Require Referer from same origin (blocks direct external POST)
+    referer = request.headers.get("Referer", "")
+    if referer and not referer.startswith(request.host_url):
+        return jsonify({"error": "Forbidden"}), 403
     cache.clear()
     return jsonify({"status": "ok", "message": "Cache cleared"})
 

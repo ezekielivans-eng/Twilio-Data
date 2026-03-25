@@ -1,4 +1,5 @@
 import logging
+from functools import lru_cache
 
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
@@ -10,24 +11,35 @@ logger = logging.getLogger(__name__)
 TWILIO_TIMEOUT = 20  # seconds per request
 TWILIO_RETRIES = 1   # retry once on failure (2 attempts total)
 
+_shared_http_client = None
 
-def get_client():
-    http_client = TwilioHttpClient(max_retries=TWILIO_RETRIES, timeout=TWILIO_TIMEOUT)
+
+def _get_http_client():
+    global _shared_http_client
+    if _shared_http_client is None:
+        _shared_http_client = TwilioHttpClient(
+            max_retries=TWILIO_RETRIES, timeout=TWILIO_TIMEOUT
+        )
+    return _shared_http_client
+
+
+@lru_cache(maxsize=32)
+def _cached_client(account_sid):
+    """Return a cached Twilio Client for the given account SID."""
     return Client(
         config.TWILIO_ACCOUNT_SID,
         config.TWILIO_AUTH_TOKEN,
-        http_client=http_client,
+        account_sid=account_sid,
+        http_client=_get_http_client(),
     )
+
+
+def get_client():
+    return _cached_client(config.TWILIO_ACCOUNT_SID)
 
 
 def get_subaccount_client(subaccount_sid):
-    http_client = TwilioHttpClient(max_retries=TWILIO_RETRIES, timeout=TWILIO_TIMEOUT)
-    return Client(
-        config.TWILIO_ACCOUNT_SID,
-        config.TWILIO_AUTH_TOKEN,
-        account_sid=subaccount_sid,
-        http_client=http_client,
-    )
+    return _cached_client(subaccount_sid)
 
 
 def get_subaccounts():

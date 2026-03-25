@@ -69,11 +69,12 @@
         (function() {
             const params = new URLSearchParams(window.location.search);
             const today = new Date().toISOString().split('T')[0];
+            const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
 
             const dateFrom = document.getElementById('dateFrom');
             const dateTo = document.getElementById('dateTo');
 
-            dateFrom.value = params.get('date_from') || today;
+            dateFrom.value = params.get('date_from') || sevenDaysAgo;
             dateTo.value = params.get('date_to') || today;
 
             document.getElementById('applyDates').addEventListener('click', () => {
