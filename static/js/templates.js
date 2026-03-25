@@ -22,12 +22,16 @@ async function loadTemplates() {
     const cached = sessionStorage.getItem(cacheKey);
 
     if (cached) {
-        const data = JSON.parse(cached);
-        allTemplates = data.templates;
-        currentPage = 0;
-        applyClientFilters();
-        setLastUpdated();
-        return;
+        try {
+            const data = JSON.parse(cached);
+            allTemplates = data.templates;
+            currentPage = 0;
+            applyClientFilters();
+            setLastUpdated();
+            return;
+        } catch (e) {
+            sessionStorage.removeItem(cacheKey);
+        }
     }
 
     showLoading();
@@ -234,29 +238,28 @@ function renderTable(pageTemplates, allFiltered) {
         tbody.appendChild(detailTr);
     });
 
-    // Sorting - sorts the full filtered list, then re-renders current page
-    document.querySelectorAll('#templatesTable thead th').forEach(th => {
-        th.onclick = () => {
-            const key = th.dataset.sort;
-            if (!key) return;
-            if (currentSort.key === key) {
-                currentSort.asc = !currentSort.asc;
-            } else {
-                currentSort.key = key;
-                currentSort.asc = false;
-            }
-            lastFiltered = [...allFiltered].sort((a, b) => {
-                const av = a[key], bv = b[key];
-                let cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
-                return currentSort.asc ? cmp : -cmp;
-            });
-            updateSortIndicators(key);
-            renderFromFiltered();
-        };
-    });
-
     updateSortIndicators(currentSort.key);
 }
+
+// Sort delegation — attached once, not per render
+document.querySelector('#templatesTable thead').addEventListener('click', (e) => {
+    const th = e.target.closest('th[data-sort]');
+    if (!th) return;
+    const key = th.dataset.sort;
+    if (currentSort.key === key) {
+        currentSort.asc = !currentSort.asc;
+    } else {
+        currentSort.key = key;
+        currentSort.asc = false;
+    }
+    lastFiltered = [...lastFiltered].sort((a, b) => {
+        const av = a[key], bv = b[key];
+        let cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+        return currentSort.asc ? cmp : -cmp;
+    });
+    updateSortIndicators(key);
+    renderFromFiltered();
+});
 
 function updateSortIndicators(activeKey) {
     document.querySelectorAll('#templatesTable thead th').forEach(th => {

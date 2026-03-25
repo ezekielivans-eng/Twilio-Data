@@ -18,9 +18,12 @@ async function loadErrors() {
     const cached = sessionStorage.getItem(cacheKey);
 
     if (cached) {
-        const data = JSON.parse(cached);
-        renderPage(data);
-        return;
+        try {
+            renderPage(JSON.parse(cached));
+            return;
+        } catch (e) {
+            sessionStorage.removeItem(cacheKey);
+        }
     }
 
     showLoading();
@@ -130,26 +133,6 @@ function renderTable(errors) {
         </tr>`;
     }).join('');
 
-    // Sorting
-    document.querySelectorAll('#errorsTable thead th').forEach(th => {
-        th.onclick = () => {
-            const key = th.dataset.sort;
-            if (!key) return;
-            if (currentSort.key === key) {
-                currentSort.asc = !currentSort.asc;
-            } else {
-                currentSort.key = key;
-                currentSort.asc = false;
-            }
-            const sorted = [...errors].sort((a, b) => {
-                const av = a[key], bv = b[key];
-                let cmp = typeof av === 'string' ? String(av).localeCompare(String(bv)) : av - bv;
-                return currentSort.asc ? cmp : -cmp;
-            });
-            updateSortIndicators(key);
-            renderTable(sorted);
-        };
-    });
     updateSortIndicators(currentSort.key);
 }
 
@@ -161,6 +144,26 @@ function updateSortIndicators(activeKey) {
         }
     });
 }
+
+// Sort delegation — attached once, not per render
+document.querySelector('#errorsTable thead').addEventListener('click', (e) => {
+    const th = e.target.closest('th[data-sort]');
+    if (!th) return;
+    const key = th.dataset.sort;
+    if (currentSort.key === key) {
+        currentSort.asc = !currentSort.asc;
+    } else {
+        currentSort.key = key;
+        currentSort.asc = false;
+    }
+    const sorted = [...currentErrors].sort((a, b) => {
+        const av = a[key], bv = b[key];
+        let cmp = typeof av === 'string' ? String(av).localeCompare(String(bv)) : av - bv;
+        return currentSort.asc ? cmp : -cmp;
+    });
+    updateSortIndicators(key);
+    renderTable(sorted);
+});
 
 document.getElementById('exportErrorsCSV')?.addEventListener('click', () => {
     const headers = ['Error Code', 'Count', '% of Errors', 'Failed', 'Undelivered'];

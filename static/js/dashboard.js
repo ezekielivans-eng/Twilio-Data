@@ -22,9 +22,12 @@ async function loadDashboard() {
     const cached = sessionStorage.getItem(cacheKey);
 
     if (cached) {
-        const data = JSON.parse(cached);
-        renderPage(data);
-        return;
+        try {
+            renderPage(JSON.parse(cached));
+            return;
+        } catch (e) {
+            sessionStorage.removeItem(cacheKey);
+        }
     }
 
     showLoading();

@@ -19,9 +19,12 @@ async function loadDetail() {
     const cached = sessionStorage.getItem(cacheKey);
 
     if (cached) {
-        const data = JSON.parse(cached);
-        renderPage(data);
-        return;
+        try {
+            renderPage(JSON.parse(cached));
+            return;
+        } catch (e) {
+            sessionStorage.removeItem(cacheKey);
+        }
     }
 
     showLoading();
@@ -208,29 +211,28 @@ function renderTemplatesTable(templates) {
         tbody.appendChild(detailTr);
     });
 
-    // Sorting
-    document.querySelectorAll('#detailTemplatesTable thead th').forEach(th => {
-        th.onclick = () => {
-            const key = th.dataset.sort;
-            if (!key) return;
-            if (currentSort.key === key) {
-                currentSort.asc = !currentSort.asc;
-            } else {
-                currentSort.key = key;
-                currentSort.asc = false;
-            }
-            const sorted = [...templates].sort((a, b) => {
-                const av = a[key], bv = b[key];
-                let cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
-                return currentSort.asc ? cmp : -cmp;
-            });
-            updateSortIndicators(key);
-            renderTemplatesTable(sorted);
-        };
-    });
-
     updateSortIndicators(currentSort.key);
 }
+
+// Sort delegation — attached once, not per render
+document.querySelector('#detailTemplatesTable thead').addEventListener('click', (e) => {
+    const th = e.target.closest('th[data-sort]');
+    if (!th) return;
+    const key = th.dataset.sort;
+    if (currentSort.key === key) {
+        currentSort.asc = !currentSort.asc;
+    } else {
+        currentSort.key = key;
+        currentSort.asc = false;
+    }
+    const sorted = [...currentTemplates].sort((a, b) => {
+        const av = a[key], bv = b[key];
+        let cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+        return currentSort.asc ? cmp : -cmp;
+    });
+    updateSortIndicators(key);
+    renderTemplatesTable(sorted);
+});
 
 function updateSortIndicators(activeKey) {
     document.querySelectorAll('#detailTemplatesTable thead th').forEach(th => {

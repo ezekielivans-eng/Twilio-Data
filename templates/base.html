@@ -27,6 +27,12 @@
         <div class="date-picker">
             <label>From (UTC): <input type="date" id="dateFrom"></label>
             <label>To (UTC): <input type="date" id="dateTo"></label>
+            <div class="date-presets">
+                <button type="button" class="btn btn-sm" data-days="0">Today</button>
+                <button type="button" class="btn btn-sm" data-days="7">7d</button>
+                <button type="button" class="btn btn-sm" data-days="30">30d</button>
+                <button type="button" class="btn btn-sm" data-days="90">90d</button>
+            </div>
             <div class="account-filter-wrapper" style="position:relative;">
                 <label style="font-size:0.85rem;font-weight:600;color:#555;">Account:</label>
                 <button type="button" id="accountFilterBtn" class="filter-select" aria-haspopup="true" aria-expanded="false" style="min-width:180px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
@@ -69,11 +75,12 @@
         (function() {
             const params = new URLSearchParams(window.location.search);
             const today = new Date().toISOString().split('T')[0];
+            const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
 
             const dateFrom = document.getElementById('dateFrom');
             const dateTo = document.getElementById('dateTo');
 
-            dateFrom.value = params.get('date_from') || today;
+            dateFrom.value = params.get('date_from') || sevenDaysAgo;
             dateTo.value = params.get('date_to') || today;
 
             document.getElementById('applyDates').addEventListener('click', () => {
@@ -89,6 +96,19 @@
                 url.searchParams.set('date_from', dateFrom.value);
                 url.searchParams.set('date_to', dateTo.value);
                 window.location = url;
+            });
+
+            document.querySelectorAll('.date-presets button[data-days]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const days = parseInt(btn.dataset.days);
+                    dateTo.value = today;
+                    dateFrom.value = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
+                    sessionStorage.clear();
+                    const url = new URL(window.location);
+                    url.searchParams.set('date_from', dateFrom.value);
+                    url.searchParams.set('date_to', dateTo.value);
+                    window.location = url;
+                });
             });
 
             document.getElementById('refreshCache').addEventListener('click', async () => {
